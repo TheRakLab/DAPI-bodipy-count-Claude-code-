@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAPI + Lipid Analyzer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Hebrew:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--surf:#111827;--surf2:#1a2235;
+  --brd:#1e3a5f;--acc:#00d4ff;--grn:#10b981;--warn:#f59e0b;--red:#ef4444;
+  --txt:#e2e8f0;--muted:#64748b;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans Hebrew',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--txt);height:100vh;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+header{padding:.9rem 1.5rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.9rem;background:var(--surf)}
+.logo{width:26px;height:26px;border:2px solid var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.logo::after{content:'';width:8px;height:8px;background:var(--acc);border-radius:50%}
+header h1{font-family:var(--mono);font-size:.85rem;font-weight:600;color:var(--acc);letter-spacing:.06em}
+header small{font-size:.68rem;color:var(--muted)}
+main{display:grid;grid-template-columns:360px 1fr;overflow:hidden}
+
+/* ── LEFT PANEL ── */
+.left{background:var(--surf);border-left:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden}
+.lbl{font-family:var(--mono);font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;padding:.55rem 1rem .35rem;border-bottom:1px solid var(--brd);flex-shrink:0}
+
+.drop-pair{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:.7rem .9rem;flex-shrink:0}
+.dz{border:1.5px dashed var(--brd);border-radius:9px;padding:.85rem .4rem;text-align:center;cursor:pointer;transition:all .18s}
+.dz:hover,.dz.over{background:rgba(0,212,255,.04);border-color:var(--acc)}
+.dz.ok-dapi{border-color:var(--acc);background:rgba(0,212,255,.06)}
+.dz.ok-green{border-color:var(--grn);background:rgba(16,185,129,.06)}
+.dz input{display:none}
+.dz-icon{font-size:1.2rem;display:block;margin-bottom:.3rem}
+.dz-title{font-family:var(--mono);font-size:.62rem;font-weight:600;margin-bottom:.15rem}
+.ok-dapi .dz-title{color:var(--acc)}
+.ok-green .dz-title{color:var(--grn)}
+.dz p{font-size:.58rem;color:var(--muted);line-height:1.4}
+.fname{font-size:.56rem;color:var(--muted);margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.ctrls{padding:.4rem .9rem .5rem;display:flex;flex-direction:column;gap:.45rem;flex-shrink:0}
+.ctrl label{font-family:var(--mono);font-size:.62rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:.15rem}
+.ctrl label span{color:var(--acc)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--brd);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--acc);border-radius:50%;cursor:pointer}
+
+.btns{display:flex;gap:.45rem;padding:0 .9rem .55rem;flex-shrink:0}
+.btn{flex:1;padding:.6rem;border:none;border-radius:7px;font-family:var(--mono);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .18s}
+.btn-p{background:var(--acc);color:var(--bg)}
+.btn-p:hover:not(:disabled){background:#00b8d9}
+.btn-p:disabled{opacity:.35;cursor:not-allowed}
+.btn-s{background:transparent;border:1px solid var(--brd);color:var(--muted)}
+.btn-s:hover{border-color:var(--acc);color:var(--acc)}
+
+.prog{height:2px;background:var(--brd);margin:.2rem .9rem;border-radius:1px;overflow:hidden;display:none;flex-shrink:0}
+.prog-f{height:100%;background:var(--acc);width:0;transition:width .2s}
+
+/* channel toggle */
+.ch-row{display:flex;gap:.35rem;padding:0 .9rem .45rem;flex-shrink:0}
+.ch-btn{flex:1;padding:.35rem;border-radius:5px;font-family:var(--mono);font-size:.62rem;cursor:pointer;border:1px solid var(--brd);background:transparent;color:var(--muted);transition:all .14s}
+.ch-btn.a-dapi{background:rgba(0,212,255,.13);border-color:var(--acc);color:var(--acc)}
+.ch-btn.a-green{background:rgba(16,185,129,.13);border-color:var(--grn);color:var(--grn)}
+.ch-btn.a-merge{background:rgba(140,140,255,.13);border-color:#9999ff;color:#bbbbff}
+
+.stats{flex:1;overflow-y:auto;padding:0 .9rem .9rem}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+
+/* summary */
+.sum-box{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.8rem .9rem;margin:.6rem 0;position:relative}
+.sum-title{font-family:var(--mono);font-size:.58rem;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.45rem}
+.sum-pre{font-family:var(--mono);font-size:.65rem;color:var(--txt);line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.cpy{position:absolute;top:.6rem;left:.7rem;background:transparent;border:1px solid var(--brd);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:.58rem;padding:2px 7px;cursor:pointer;transition:all .14s}
+.cpy:hover{border-color:var(--acc);color:var(--acc)}
+.cpy.ok{color:var(--grn);border-color:var(--grn)}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin:.45rem 0}
+.sc{background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.55rem .7rem}
+.sc .v{font-family:var(--mono);font-size:1.2rem;font-weight:600;color:var(--acc);line-height:1}
+.sc .v.g{color:var(--grn)}
+.sc .v.r{color:var(--red)}
+.sc .k{font-size:.58rem;color:var(--muted);margin-top:.18rem}
+
+.hist{margin:.35rem 0 .6rem}
+.hr{display:flex;align-items:center;gap:.4rem;margin-bottom:4px}
+.hl{font-family:var(--mono);font-size:.56rem;color:var(--muted);width:52px;flex-shrink:0}
+.ht{flex:1;height:14px;background:var(--surf2);border-radius:2px;overflow:hidden;position:relative}
+.hf{height:100%;border-radius:2px;transition:width .45s ease}
+.hc{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:.54rem;color:rgba(255,255,255,.45)}
+.hp{font-family:var(--mono);font-size:.56rem;color:var(--muted);width:26px;text-align:right;flex-shrink:0}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.6rem}
+th{color:var(--muted);font-weight:500;padding:.3rem .4rem;text-align:left;border-bottom:1px solid var(--brd);white-space:nowrap}
+td{padding:.27rem .4rem;border-bottom:1px solid rgba(30,58,95,.35);color:var(--txt)}
+tr:hover td{background:var(--surf2)}
+tr.sel td{background:rgba(0,212,255,.07)}
+tr.excl td{opacity:.38}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:3px;vertical-align:middle}
+.badge{font-size:.52rem;padding:1px 5px;border-radius:3px}
+.b-ok{background:rgba(16,185,129,.12);color:var(--grn)}
+.b-ex{background:rgba(239,68,68,.12);color:var(--red)}
+.b-ves{background:rgba(245,158,11,.12);color:var(--warn)}
+.b-mix{background:rgba(153,153,255,.12);color:#aaaaff}
+.b-dif{background:rgba(100,116,139,.12);color:var(--muted)}
+
+/* ── RIGHT PANEL ── */
+.right{position:relative;overflow:hidden;background:#050810;display:flex;align-items:center;justify-content:center}
+.cwrap{position:relative;display:inline-block}
+#iCvs{display:block}
+#oCvs{position:absolute;top:0;left:0;pointer-events:all}
+.empty{display:flex;flex-direction:column;align-items:center;gap:.9rem;color:var(--muted)}
+.ering{width:64px;height:64px;border:1.5px dashed var(--brd);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--brd)}
+.zbar{position:absolute;bottom:.75rem;right:.75rem;display:flex;gap:.3rem}
+.zb{width:28px;height:28px;background:var(--surf);border:1px solid var(--brd);border-radius:5px;color:var(--txt);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .13s}
+.zb:hover{border-color:var(--acc);color:var(--acc)}
+#tip{position:absolute;background:var(--surf);border:1px solid var(--brd);border-radius:7px;padding:.5rem .7rem;font-family:var(--mono);font-size:.63rem;pointer-events:none;display:none;z-index:10;min-width:165px}
+.ti{font-weight:600;margin-bottom:.25rem}
+.ti.ex{color:var(--red)}
+.ti.ok{color:var(--acc)}
+.tr{display:flex;justify-content:space-between;gap:.9rem;color:var(--muted)}
+.tr span{color:var(--txt)}
+.tr span.g{color:var(--grn)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <h1>DAPI + LIPID ANALYZER</h1>
+  <small>// ניתוח דו-ערוצי פלואורסצנציה</small>
+</header>
+<main>
+<div class="left">
+  <div class="lbl">// טעינת ערוצים</div>
+  <div class="drop-pair">
+    <div class="dz" id="dzD" onclick="document.getElementById('fD').click()">
+      <input type="file" id="fD" accept="image/*">
+      <span class="dz-icon">◉</span>
+      <div class="dz-title">DAPI</div>
+      <p>גרעיני תאים</p>
+      <div class="fname" id="nmD">לא נטען</div>
+    </div>
+    <div class="dz" id="dzG" onclick="document.getElementById('fG').click()">
+      <input type="file" id="fG" accept="image/*">
+      <span class="dz-icon">◈</span>
+      <div class="dz-title">ירוק</div>
+      <p>צביעת שומן</p>
+      <div class="fname" id="nmG">לא נטען</div>
+    </div>
+  </div>
+
+  <div class="lbl">// פרמטרים</div>
+  <div class="ctrls">
+    <div class="ctrl">
+      <label>רגישות adaptive <span id="vT">-10</span></label>
+      <input type="range" id="sT" min="-50" max="50" value="-10">
+    </div>
+    <div class="ctrl">
+      <label>רדיוס מינימלי px <span id="vMn">8</span></label>
+      <input type="range" id="sMn" min="3" max="150" value="8">
+    </div>
+    <div class="ctrl">
+      <label>רדיוס מקסימלי px <span id="vMx">120</span></label>
+      <input type="range" id="sMx" min="20" max="400" value="120">
+    </div>
+    <div class="ctrl">
+      <label>עגוליות מינימלית <span id="vC">0.50</span></label>
+      <input type="range" id="sC" min="0" max="100" value="50">
+    </div>
+    <div class="ctrl">
+      <label>רדיוס מדידה ירוק (px קבוע) <span id="vM">40</span></label>
+      <input type="range" id="sM" min="10" max="200" value="40">
+    </div>
+    <div class="ctrl">
+      <label>סף עוצמה ירוקה <span id="vG">15</span></label>
+      <input type="range" id="sG" min="1" max="100" value="15">
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="btn btn-p" id="btnA" disabled onclick="startAnalysis()">▶ נתח</button>
+    <button class="btn btn-s" onclick="doReset()">↺ אפס</button>
+  </div>
+
+  <div class="prog" id="prog"><div class="prog-f" id="pf"></div></div>
+
+  <div class="lbl">// תצוגה</div>
+  <div class="ch-row">
+    <button class="ch-btn a-dapi" id="chD" onclick="setCh('dapi')">DAPI</button>
+    <button class="ch-btn" id="chG2" onclick="setCh('green')">ירוק</button>
+    <button class="ch-btn" id="chM" onclick="setCh('merge')">מיזוג</button>
+  </div>
+
+  <div class="lbl">// תוצאות</div>
+  <div class="stats" id="stats"><div style="color:var(--muted);font-size:.72rem;padding:.4rem 0">טען שני קבצים ולחץ נתח</div></div>
+</div>
+
+<div class="right" id="rp">
+  <div class="empty" id="es"><div class="ering">⊕</div><p>טען DAPI + ירוק</p></div>
+  <div class="cwrap" id="cw" style="display:none">
+    <canvas id="iCvs"></canvas>
+    <canvas id="oCvs"></canvas>
+  </div>
+  <div id="tip"></div>
+  <div class="zbar">
+    <button class="zb" onclick="doZoom(1.25)">+</button>
+    <button class="zb" onclick="doZoom(0.8)">−</button>
+    <button class="zb" onclick="resetZoom()">⌖</button>
+  </div>
+</div>
+</main>
+<canvas id="pc" style="display:none"></canvas>
+
+<script>
+// ── STATE ──
+let imgD=null, imgG=null, grayD=null, grayG=null;
+let iW=0,iH=0, dscale=1, ch='dapi';
+let circles=[], selIdx=-1;
+let fnD='',fnG='';
+
+// ── SLIDERS ──
+const SL=[['sT','vT',v=>(v>0?'+':'')+v],['sMn','vMn',v=>v],['sMx','vMx',v=>v],
+          ['sC','vC',v=>(v/100).toFixed(2)],['sM','vM',v=>v],['sG','vG',v=>v]];
+SL.forEach(([s,v,f])=>{ document.getElementById(s).oninput=e=>document.getElementById(v).textContent=f(e.target.value); });
+
+// ── FILE LOAD ──
+function setupDZ(dzId,inId,side){
+  const dz=document.getElementById(dzId);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadCh(f,side)});
+  document.getElementById(inId).onchange=function(){if(this.files[0])loadCh(this.files[0],side)};
+}
+setupDZ('dzD','fD','dapi');
+setupDZ('dzG','fG','green');
+
+function loadCh(file,side){
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(side==='dapi'){imgD=img;fnD=file.name;document.getElementById('dzD').className='dz ok-dapi';document.getElementById('nmD').textContent=file.name;}
+      else{imgG=img;fnG=file.name;document.getElementById('dzG').className='dz ok-green';document.getElementById('nmG').textContent=file.name;}
+      if(imgD&&imgG){document.getElementById('btnA').disabled=false;document.getElementById('es').style.display='none';document.getElementById('cw').style.display='block';redraw();}
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+// ── CHANNEL / DRAW ──
+function setCh(c){
+  ch=c;
+  ['dapi','green','merge'].forEach(x=>{
+    const id='ch'+(x==='dapi'?'D':x==='green'?'G2':'M');
+    document.getElementById(id).className='ch-btn'+(ch===x?' a-'+x:'');
+  });
+  redraw();
+  if(circles.length) drawOverlay();
+}
+
+function redraw(){
+  if(!imgD) return;
+  const rp=document.getElementById('rp');
+  const mW=rp.clientWidth-20, mH=rp.clientHeight-20;
+  dscale=Math.min(mW/imgD.width,mH/imgD.height,1);
+  iW=imgD.width; iH=imgD.height;
+  const dW=Math.round(iW*dscale), dH=Math.round(iH*dscale);
+  const ic=document.getElementById('iCvs'), oc=document.getElementById('oCvs');
+  ic.width=oc.width=dW; ic.height=oc.height=dH;
+  const ctx=ic.getContext('2d');
+
+  if(ch==='merge'&&imgG){
+    const tmp=document.createElement('canvas'); tmp.width=iW; tmp.height=iH;
+    const tc=tmp.getContext('2d');
+    tc.drawImage(imgD,0,0); const dd=tc.getImageData(0,0,iW,iH).data;
+    tc.clearRect(0,0,iW,iH); tc.drawImage(imgG,0,0); const gd=tc.getImageData(0,0,iW,iH).data;
+    const out=tc.createImageData(iW,iH);
+    for(let i=0;i<iW*iH;i++){
+      const dg=(77*dd[i*4]+150*dd[i*4+1]+29*dd[i*4+2])>>8;
+      const gg=(77*gd[i*4]+150*gd[i*4+1]+29*gd[i*4+2])>>8;
+      out.data[i*4]=Math.min(255,dg*.25)|0;
+      out.data[i*4+1]=Math.min(255,gg)|0;
+      out.data[i*4+2]=Math.min(255,dg)|0;
+      out.data[i*4+3]=255;
+    }
+    tc.putImageData(out,0,0); ctx.drawImage(tmp,0,0,dW,dH);
+  } else {
+    ctx.drawImage(ch==='green'?(imgG||imgD):imgD,0,0,dW,dH);
+  }
+}
+
+// ── PROGRESS ──
+function prog(p){
+  const b=document.getElementById('prog'), f=document.getElementById('pf');
+  b.style.display='block'; f.style.width=p+'%';
+  if(p>=100) setTimeout(()=>b.style.display='none',500);
+}
+
+// ── ANALYSIS ──
+function startAnalysis(){
+  if(!imgD||!imgG) return;
+  document.getElementById('btnA').disabled=true;
+  circles=[]; selIdx=-1;
+  prog(5);
+  setTimeout(()=>{
+    const pc=document.getElementById('pc');
+    pc.width=iW; pc.height=iH;
+    const ctx=pc.getContext('2d');
+    const N=iW*iH;
+
+    ctx.drawImage(imgD,0,0);
+    const dd=ctx.getImageData(0,0,iW,iH).data;
+    const gD=new Uint8Array(N);
+    for(let i=0;i<N;i++) gD[i]=(77*dd[i*4]+150*dd[i*4+1]+29*dd[i*4+2])>>8;
+    grayD=gD; prog(15);
+
+    ctx.drawImage(imgG,0,0);
+    const gd=ctx.getImageData(0,0,iW,iH).data;
+    const gG=new Uint8Array(N);
+    for(let i=0;i<N;i++) gG[i]=(77*gd[i*4]+150*gd[i*4+1]+29*gd[i*4+2])>>8;
+    grayG=gG; prog(25);
+
+    setTimeout(()=>{
+      const blur=boxBlur(gD,iW,iH,2); prog(35);
+      setTimeout(()=>{
+        const thr=parseInt(document.getElementById('sT').value);
+        const bR=Math.max(15,Math.round(Math.min(iW,iH)/20));
+        const bin=adaptThresh(blur,iW,iH,bR,-thr);
+        const opn=morphOpen(bin,iW,iH,2); prog(50);
+        setTimeout(()=>{
+          const labs=ccl(opn,iW,iH); prog(65);
+          setTimeout(()=>{
+            const minR=parseInt(document.getElementById('sMn').value);
+            const maxR=parseInt(document.getElementById('sMx').value);
+            const minC=parseFloat(document.getElementById('sC').value)/100;
+            const mult=parseInt(document.getElementById('sM').value);
+            const gThr=parseInt(document.getElementById('sG').value);
+
+            const comps=buildComps(labs,gD,iW,iH);
+            let cands=comps.filter(c=>{const r=Math.sqrt(c.area/Math.PI);return r>=minR&&r<=maxR&&c.circ>=minC;});
+
+            // median radius
+            let avgR=0;
+            if(cands.length){
+              const rs=cands.map(c=>Math.sqrt(c.area/Math.PI)).sort((a,b)=>a-b);
+              const q1=Math.floor(rs.length*.25),q3=Math.floor(rs.length*.75);
+              const sl=rs.slice(q1,q3+1);
+              avgR=sl.reduce((a,b)=>a+b,0)/Math.max(1,sl.length);
+            }
+            cands=splitTouching(cands,avgR); prog(78);
+
+            // build circles with FIXED measurement radius
+            const exp=cands.map(c=>({...c,r:Math.sqrt(c.area/Math.PI),rE:mult}));
+
+            // detect overlapping expanded zones
+            const n=exp.length;
+            const ov=new Uint8Array(n);
+            for(let i=0;i<n;i++){
+              if(ov[i]) continue;
+              for(let j=i+1;j<n;j++){
+                const dx=exp[i].cx-exp[j].cx,dy=exp[i].cy-exp[j].cy;
+                if(Math.sqrt(dx*dx+dy*dy)<exp[i].rE+exp[j].rE){ov[i]=1;ov[j]=1;}
+              }
+            }
+            prog(88);
+
+            // measure green channel + vesicle analysis
+            circles=exp.map((c,i)=>{
+              const excl=!!ov[i];
+              let gMean=0,gSum=0,gMax=0,gPix=0,gArea=0,gStd=0;
+              let vesicleScore=0, vesicleCount=0, pattern='—';
+              const pixels=[];
+              if(!excl){
+                const x0=Math.max(0,Math.round(c.cx-c.rE)),x1=Math.min(iW-1,Math.round(c.cx+c.rE));
+                const y0=Math.max(0,Math.round(c.cy-c.rE)),y1=Math.min(iH-1,Math.round(c.cy+c.rE));
+                const r2=c.rE*c.rE;
+                for(let py=y0;py<=y1;py++){
+                  for(let px=x0;px<=x1;px++){
+                    const dx=px-c.cx,dy=py-c.cy;
+                    if(dx*dx+dy*dy<=r2){
+                      const g=grayG[py*iW+px];
+                      pixels.push({v:g,x:px,y:py});
+                      gSum+=g; gArea++;
+                      if(g>gMax) gMax=g;
+                      if(g>gThr) gPix++;
+                    }
+                  }
+                }
+                gMean=gArea>0?gSum/gArea:0;
+                // std dev
+                let ss=0; for(const p of pixels) ss+=(p.v-gMean)**2;
+                gStd=gArea>1?Math.sqrt(ss/gArea):0;
+                // CV = std/mean — high CV → vesicular
+                const cv=gMean>0?gStd/gMean:0;
+                // Local peak detection: count pixels > mean+1.5*std (hotspots)
+                const peakThr=gMean+1.5*gStd;
+                const peakMask=new Uint8Array(iW*iH);
+                for(const p of pixels) if(p.v>=peakThr) peakMask[p.y*iW+p.x]=1;
+                // simple connected component count on peak mask within circle
+                const visited=new Uint8Array(iW*iH);
+                let peaks=0;
+                for(const p of pixels){
+                  const idx=p.y*iW+p.x;
+                  if(!peakMask[idx]||visited[idx]) continue;
+                  peaks++;
+                  const q=[idx]; visited[idx]=1;
+                  while(q.length){
+                    const ci=q.pop(),cx2=ci%iW,cy2=(ci/iW)|0;
+                    for(const ni of[ci-1,ci+1,ci-iW,ci+iW]){
+                      if(ni>=0&&ni<iW*iH&&!visited[ni]&&peakMask[ni]){
+                        const nx=ni%iW,ny=(ni/iW)|0;
+                        const ddx=nx-c.cx,ddy=ny-c.cy;
+                        if(ddx*ddx+ddy*ddy<=r2){visited[ni]=1;q.push(ni);}
+                      }
+                    }
+                  }
+                }
+                vesicleCount=peaks;
+                vesicleScore=cv;
+                // Classify: CV<0.3 → diffuse, 0.3-0.6 → mixed, >0.6 → vesicular
+                pattern=cv<0.30?'מפוזר':cv<0.60?'מעורב':'וסיקולרי';
+              }
+              return{id:i+1,cx:c.cx,cy:c.cy,r:c.r,rE:c.rE,area:c.area,circ:c.circ,
+                     dapiMean:c.meanI,excl,gMean,gSum,gMax,gPct:gArea>0?gPix/gArea*100:0,
+                     gArea,gStd,cv:vesicleScore,vesicleCount,pattern};
+            });
+
+            prog(96);
+            redraw(); drawOverlay(); renderStats();
+            document.getElementById('btnA').disabled=false;
+            prog(100);
+          },20);
+        },20);
+      },20);
+    },20);
+  },20);
+}
+
+// ── IMAGE PROCESSING ──
+function boxBlur(src,W,H,r){
+  const N=W*H; let a=new Uint8Array(src),b=new Uint8Array(N);
+  for(let p=0;p<2;p++){
+    for(let y=0;y<H;y++){let s=0,row=y*W;for(let x=0;x<W;x++){if(x===0){s=0;for(let k=0;k<=r&&k<W;k++)s+=a[row+k];}else{if(x+r<W)s+=a[row+x+r];if(x-r-1>=0)s-=a[row+x-r-1];}const c=Math.min(x+r,W-1)-Math.max(0,x-r)+1;b[row+x]=(s/c+.5)|0;}}
+    for(let x=0;x<W;x++){let s=0;for(let y=0;y<H;y++){if(y===0){s=0;for(let k=0;k<=r&&k<H;k++)s+=b[k*W+x];}else{if(y+r<H)s+=b[(y+r)*W+x];if(y-r-1>=0)s-=b[(y-r-1)*W+x];}const c=Math.min(y+r,H-1)-Math.max(0,y-r)+1;a[y*W+x]=(s/c+.5)|0;}}
+  }
+  return a;
+}
+
+function adaptThresh(gray,W,H,bR,C){
+  const integ=new Float64Array((W+1)*(H+1));
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++) integ[(y+1)*(W+1)+(x+1)]=gray[y*W+x]+integ[y*(W+1)+(x+1)]+integ[(y+1)*(W+1)+x]-integ[y*(W+1)+x];
+  const bin=new Uint8Array(W*H);
+  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
+    const x1=Math.max(0,x-bR),y1=Math.max(0,y-bR),x2=Math.min(W-1,x+bR),y2=Math.min(H-1,y+bR);
+    const cnt=(x2-x1+1)*(y2-y1+1);
+    const s=integ[(y2+1)*(W+1)+(x2+1)]-integ[y1*(W+1)+(x2+1)]-integ[(y2+1)*(W+1)+x1]+integ[y1*(W+1)+x1];
+    bin[y*W+x]=gray[y*W+x]>s/cnt+C?1:0;
+  }}
+  return bin;
+}
+
+function morphOpen(bin,W,H,r){
+  const N=W*H,tmp=new Uint8Array(N),out=new Uint8Array(N);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(!bin[y*W+x]){continue;}
+    let ok=1;
+    lp:for(let dy=-r;dy<=r&&ok;dy++)for(let dx=-r;dx<=r&&ok;dx++){const ny=y+dy,nx=x+dx;if(ny>=0&&ny<H&&nx>=0&&nx<W&&!bin[ny*W+nx])ok=0;}
+    tmp[y*W+x]=ok;
+  }
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let f=0;
+    lp2:for(let dy=-r;dy<=r&&!f;dy++)for(let dx=-r;dx<=r&&!f;dx++){const ny=y+dy,nx=x+dx;if(ny>=0&&ny<H&&nx>=0&&nx<W&&tmp[ny*W+nx])f=1;}
+    out[y*W+x]=f;
+  }
+  return out;
+}
+
+function ccl(bin,W,H){
+  const labs=new Int32Array(W*H),q=new Int32Array(W*H);let nxt=1;
+  for(let sy=0;sy<H;sy++)for(let sx=0;sx<W;sx++){
+    const si=sy*W+sx;if(!bin[si]||labs[si])continue;
+    labs[si]=nxt;let hd=0,tl=0;q[tl++]=si;
+    while(hd<tl){const ci=q[hd++],cx=ci%W,cy=(ci/W)|0;
+      if(cy>0&&bin[ci-W]&&!labs[ci-W]){labs[ci-W]=nxt;q[tl++]=ci-W;}
+      if(cy<H-1&&bin[ci+W]&&!labs[ci+W]){labs[ci+W]=nxt;q[tl++]=ci+W;}
+      if(cx>0&&bin[ci-1]&&!labs[ci-1]){labs[ci-1]=nxt;q[tl++]=ci-1;}
+      if(cx<W-1&&bin[ci+1]&&!labs[ci+1]){labs[ci+1]=nxt;q[tl++]=ci+1;}
+    }
+    nxt++;
+  }
+  return labs;
+}
+
+function buildComps(labs,gray,W,H){
+  const map=new Map();
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const l=labs[y*W+x];if(!l)continue;
+    if(!map.has(l))map.set(l,{sX:0,sY:0,area:0,peri:0,sG:0,mxG:0});
+    const c=map.get(l),g=gray[y*W+x];
+    c.sX+=x;c.sY+=y;c.area++;c.sG+=g;if(g>c.mxG)c.mxG=g;
+    const edge=!labs[y*W+x-1]||!labs[y*W+x+1]||!labs[(y-1)*W+x]||!labs[(y+1)*W+x]||x===0||x===W-1||y===0||y===H-1;
+    if(edge)c.peri++;
+  }
+  const res=[];
+  for(const[,c]of map){
+    if(c.area<5)continue;
+    const circ=c.peri>0?(4*Math.PI*c.area)/(c.peri*c.peri):0;
+    res.push({cx:c.sX/c.area,cy:c.sY/c.area,area:c.area,peri:c.peri,circ:Math.min(1,circ),meanI:c.sG/c.area,maxI:c.mxG});
+  }
+  return res;
+}
+
+function splitTouching(cands,avgR){
+  if(avgR<3)return cands;
+  const ea=Math.PI*avgR*avgR,res=[];
+  for(const c of cands){
+    const ratio=c.area/ea;
+    if(ratio<1.6){res.push(c);continue;}
+    const N=Math.min(20,Math.round(ratio));
+    if(N<2){res.push(c);continue;}
+    const step=(2*Math.PI)/N;
+    for(let k=0;k<N;k++) res.push({...c,cx:c.cx+Math.cos(k*step)*avgR*.45,cy:c.cy+Math.sin(k*step)*avgR*.45,area:c.area/N,peri:c.peri/N});
+  }
+  return res;
+}
+
+// ── OVERLAY ──
+function drawOverlay(){
+  const oc=document.getElementById('oCvs'),ctx=oc.getContext('2d');
+  ctx.clearRect(0,0,oc.width,oc.height);
+  const s=dscale;
+  circles.forEach((c,i)=>{
+    const x=c.cx*s,y=c.cy*s,r=c.r*s,rE=c.rE*s,sel=i===selIdx;
+    if(c.excl){
+      ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);
+      ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(239,68,68,.55)';ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);
+    } else {
+      // nucleus
+      ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);
+      ctx.strokeStyle=sel?'#00d4ff':'rgba(0,212,255,.75)';ctx.lineWidth=sel?2.5:1.5;ctx.stroke();
+      // expanded zone
+      ctx.beginPath();ctx.arc(x,y,rE,0,2*Math.PI);
+      const alpha=Math.min(.22,c.gMean/255*.55);
+      ctx.fillStyle=`rgba(16,185,129,${alpha})`;ctx.fill();
+      ctx.setLineDash([5,4]);
+      ctx.strokeStyle=sel?'#10b981':'rgba(16,185,129,.4)';ctx.lineWidth=sel?2:1;ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.fillStyle=c.excl?'rgba(239,68,68,.65)':(sel?'#00d4ff':'rgba(255,255,255,.6)');
+    ctx.font=`${Math.max(7,Math.min(10,r*.6))}px IBM Plex Mono,monospace`;
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(c.id,x,y);
+  });
+}
+
+// ── TOOLTIP ──
+document.getElementById('oCvs').addEventListener('mousemove',e=>{
+  if(!circles.length)return;
+  const rect=e.target.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)/dscale,my=(e.clientY-rect.top)/dscale;
+  const tip=document.getElementById('tip');
+  let hit=-1;
+  for(let i=0;i<circles.length;i++){const c=circles[i],d=Math.sqrt((mx-c.cx)**2+(my-c.cy)**2);if(d<=c.rE+3){hit=i;break;}}
+  if(hit>=0){
+    const c=circles[hit],rp=document.getElementById('rp').getBoundingClientRect();
+    tip.style.display='block';
+    tip.style.left=(e.clientX-rp.left+14)+'px';
+    tip.style.top=(e.clientY-rp.top-10)+'px';
+    tip.innerHTML=`<div class="ti ${c.excl?'ex':'ok'}">#${c.id}${c.excl?' [מוחרג]':''}</div>
+      <div class="tr">רדיוס <span>${c.r.toFixed(1)} px</span></div>
+      <div class="tr">DAPI⌀ <span>${c.dapiMean.toFixed(0)}</span></div>
+      ${!c.excl?`<div class="tr">ירוק⌀ <span class="g">${c.gMean.toFixed(1)}</span></div>
+      <div class="tr">∫density <span class="g">${c.gSum.toFixed(0)}</span></div>
+      <div class="tr">%ירוק>סף <span class="g">${c.gPct.toFixed(1)}%</span></div>
+      <div class="tr">CV (פיזור) <span class="g">${c.cv.toFixed(2)}</span></div>
+      <div class="tr">מוקדים <span class="g">${c.vesicleCount}</span></div>
+      <div class="tr">דפוס <span class="g">${c.pattern}</span></div>`
+      :'<div class="tr" style="color:var(--red)">חפיפה — מוחרג</div>'}`;
+    if(hit!==selIdx){selIdx=hit;drawOverlay();hlRow(hit);}
+  } else {
+    tip.style.display='none';
+    if(selIdx!==-1){selIdx=-1;drawOverlay();hlRow(-1);}
+  }
+});
+
+function hlRow(idx){
+  document.querySelectorAll('#objTbl tr').forEach((tr,i)=>{tr.classList.toggle('sel',i===idx+1);if(i===idx+1)tr.scrollIntoView({block:'nearest'});});
+}
+
+// ── ZOOM ──
+function doZoom(f){
+  if(!imgD)return;
+  dscale*=f;
+  const dW=Math.round(iW*dscale),dH=Math.round(iH*dscale);
+  const ic=document.getElementById('iCvs'),oc=document.getElementById('oCvs');
+  ic.width=oc.width=dW;ic.height=oc.height=dH;
+  redraw();if(circles.length)drawOverlay();
+}
+function resetZoom(){
+  if(!imgD)return;
+  const rp=document.getElementById('rp');
+  dscale=Math.min((rp.clientWidth-20)/iW,(rp.clientHeight-20)/iH,1);
+  const dW=Math.round(iW*dscale),dH=Math.round(iH*dscale);
+  const ic=document.getElementById('iCvs'),oc=document.getElementById('oCvs');
+  ic.width=oc.width=dW;ic.height=oc.height=dH;
+  redraw();if(circles.length)drawOverlay();
+}
+function doReset(){
+  imgD=imgG=grayD=grayG=null;circles=[];selIdx=-1;
+  ['dzD','dzG'].forEach(id=>document.getElementById(id).className='dz');
+  document.getElementById('nmD').textContent='לא נטען';
+  document.getElementById('nmG').textContent='לא נטען';
+  document.getElementById('btnA').disabled=true;
+  document.getElementById('es').style.display='flex';
+  document.getElementById('cw').style.display='none';
+  document.getElementById('stats').innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:.4rem 0">טען שני קבצים ולחץ נתח</div>';
+  document.getElementById('fD').value='';document.getElementById('fG').value='';
+}
+
+// ── STATS ──
+function renderStats(){
+  const valid=circles.filter(c=>!c.excl), excl=circles.filter(c=>c.excl);
+  if(!circles.length){document.getElementById('stats').innerHTML='<div style="color:var(--muted);font-size:.72rem">לא נמצאו תאים</div>';return;}
+
+  const rs=valid.map(c=>c.r), gm=valid.map(c=>c.gMean), gs=valid.map(c=>c.gSum);
+  const meanR=rs.length?avg(rs):0, stdR=rs.length?std(rs):0;
+  const meanGm=gm.length?avg(gm):0, totGS=gs.reduce((a,b)=>a+b,0);
+  const totArea=valid.reduce((s,c)=>s+c.gArea,0);
+  const signalPerArea=totArea>0?totGS/totArea:0;
+  const vesicCells=valid.filter(c=>c.pattern==='וסיקולרי').length;
+  const diffCells=valid.filter(c=>c.pattern==='מפוזר').length;
+  const mixCells=valid.filter(c=>c.pattern==='מעורב').length;
+  const meanCV=valid.length?avg(valid.map(c=>c.cv)):0;
+
+  // histogram
+  let mnR=Infinity,mxR=-Infinity;
+  for(const r of rs){if(r<mnR)mnR=r;if(r>mxR)mxR=r;}
+  const BINS=8,bW=(mxR-mnR)/BINS||1;
+  const hist=Array(BINS).fill(0);
+  rs.forEach(r=>{const b=Math.min(BINS-1,Math.floor((r-mnR)/bW));hist[b]++;});
+  let hMax=0;for(const h of hist)if(h>hMax)hMax=h;
+
+  // summary text
+  const now=new Date();
+  const ts=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  const hTxt=hist.map((cnt,i)=>{
+    const lo=(mnR+i*bW).toFixed(0),hi=(mnR+(i+1)*bW).toFixed(0);
+    const bar='\u2588'.repeat(Math.round(cnt/(hMax||1)*10));
+    return '  '+(lo+'\u2013'+hi+'px').padEnd(12,' ')+'| '+bar.padEnd(10,' ')+' '+cnt;
+  }).join('\n');
+  window._sum=[
+    'DAPI: '+fnD,'Green: '+fnG,'Date: '+ts,
+    '\u2500'.repeat(32),
+    'Total cells detected: '+circles.length,
+    'Valid cells:          '+valid.length,
+    'Excluded (overlap):   '+excl.length,
+    '\u2500'.repeat(32),
+    'Mean radius:          '+meanR.toFixed(1)+' px',
+    'Std radius:           '+stdR.toFixed(1)+' px',
+    '\u2500'.repeat(32),
+    'GREEN SIGNAL',
+    'Total integrated density: '+totGS.toFixed(0),
+    'Mean intensity (per px):  '+meanGm.toFixed(2),
+    'Signal per area unit:     '+signalPerArea.toFixed(2),
+    '\u2500'.repeat(32),
+    'VESICLE ANALYSIS (CV threshold: <0.30 diffuse / 0.30-0.60 mixed / >0.60 vesicular)',
+    'Mean CV:              '+meanCV.toFixed(3),
+    'Vesicular cells:      '+vesicCells+' ('+((valid.length?vesicCells/valid.length*100:0).toFixed(1))+'%)',
+    'Mixed cells:          '+mixCells+' ('+((valid.length?mixCells/valid.length*100:0).toFixed(1))+'%)',
+    'Diffuse cells:        '+diffCells+' ('+((valid.length?diffCells/valid.length*100:0).toFixed(1))+'%)',
+    '\u2500'.repeat(32),
+    'Size distribution:',hTxt
+  ].join('\n');
+
+  const iCol=v=>{const n=Math.min(1,v/200);return `hsl(${Math.round(120-n*120)},85%,52%)`;};
+
+  document.getElementById('stats').innerHTML=`
+    <div class="sum-box">
+      <div class="sum-title">// סיכום ניתוח</div>
+      <button class="cpy" id="cpyBtn" onclick="doCopy()">העתק</button>
+      <pre class="sum-pre" id="sumPre"></pre>
+    </div>
+    <div class="sg">
+      <div class="sc"><div class="v">${valid.length}</div><div class="k">תאים תקינים</div></div>
+      <div class="sc"><div class="v r">${excl.length}</div><div class="k">מוחרגים (חפיפה)</div></div>
+      <div class="sc"><div class="v g">${totGS.toFixed(0)}</div><div class="k">∫ סיגנל כולל</div></div>
+      <div class="sc"><div class="v g">${signalPerArea.toFixed(2)}</div><div class="k">סיגנל לשטח (px)</div></div>
+      <div class="sc"><div class="v">${meanGm.toFixed(1)}</div><div class="k">עוצמה ירוקה ⌀</div></div>
+      <div class="sc"><div class="v">${meanCV.toFixed(2)}</div><div class="k">CV ממוצע (פיזור)</div></div>
+    </div>
+    <div class="lbl" style="padding:0 0 .35rem;border:none">// ניתוח וסיקולות</div>
+    <div class="sg" style="margin-bottom:.5rem">
+      <div class="sc"><div class="v" style="color:var(--warn)">${vesicCells}</div><div class="k">וסיקולרי</div></div>
+      <div class="sc"><div class="v" style="color:#9999ff">${mixCells}</div><div class="k">מעורב</div></div>
+      <div class="sc"><div class="v">${diffCells}</div><div class="k">מפוזר</div></div>
+      <div class="sc"><div class="v">${(valid.length?vesicCells/valid.length*100:0).toFixed(0)}%</div><div class="k">% וסיקולרי</div></div>
+    </div>
+    <div class="lbl" style="padding:0 0 .35rem;border:none">// התפלגות גדלים</div>
+    <div class="hist">
+      ${hist.map((cnt,i)=>{
+        const lo=(mnR+i*bW).toFixed(0),hi=(mnR+(i+1)*bW).toFixed(0);
+        const pct=hMax>0?(cnt/hMax*100):0;
+        const hue=Math.round(195-(i/BINS)*60);
+        return `<div class="hr"><div class="hl">${lo}\u2013${hi}</div><div class="ht"><div class="hf" style="width:${pct.toFixed(1)}%;background:hsl(${hue},68%,50%)"></div><span class="hc">${cnt}</span></div><div class="hp">${pct.toFixed(0)}%</div></div>`;
+      }).join('')}
+    </div>
+    <div class="lbl" style="padding:0 0 .35rem;border:none">// טבלת תאים</div>
+    <div class="tw">
+      <table id="objTbl">
+        <thead><tr><th>#</th><th>r</th><th>ירוק⌀</th><th>∫dens</th><th>sig/px</th><th>CV</th><th>מוקדים</th><th>דפוס</th><th></th></tr></thead>
+        <tbody>
+          ${circles.map((c,i)=>`<tr onclick="selC(${i})" class="${c.excl?'excl':''}" style="cursor:pointer">
+            <td>${c.id}</td><td>${c.r.toFixed(1)}</td>
+            <td>${c.excl?'—':'<span class="dot" style="background:'+iCol(c.gMean)+'"></span>'+c.gMean.toFixed(0)}</td>
+            <td>${c.excl?'—':c.gSum.toFixed(0)}</td>
+            <td>${c.excl?'—':(c.gArea>0?( c.gSum/c.gArea).toFixed(1):'—')}</td>
+            <td>${c.excl?'—':c.cv.toFixed(2)}</td>
+            <td>${c.excl?'—':c.vesicleCount}</td>
+            <td>${c.excl?'—':('<span class="badge '+(c.pattern==='וסיקולרי'?'b-ves':c.pattern==='מעורב'?'b-mix':'b-dif')+'">'+c.pattern+'</span>')}</td>
+            <td>${c.excl?'<span class="badge b-ex">חפיפה</span>':'<span class="badge b-ok">✓</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  document.getElementById('sumPre').textContent=window._sum||'';
+}
+
+function selC(i){selIdx=i;drawOverlay();hlRow(i);}
+
+function doCopy(){
+  const text=window._sum||'';
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  Object.assign(ta.style,{position:'fixed',top:'0',left:'0',width:'2px',height:'2px',opacity:'0.01',fontSize:'12pt'});
+  document.body.appendChild(ta);ta.focus();ta.select();
+  let ok=false;try{ok=document.execCommand('copy');}catch(_){}
+  document.body.removeChild(ta);
+  const btn=document.getElementById('cpyBtn');
+  if(ok){
+    btn.textContent='\u2713 הועתק';btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='העתק';btn.classList.remove('ok');},2000);
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(()=>{
+      btn.textContent='\u2713 הועתק';btn.classList.add('ok');
+      setTimeout(()=>{btn.textContent='העתק';btn.classList.remove('ok');},2000);
+    }).catch(()=>alert('העתק ידנית:\n'+text));
+  } else { alert('העתק ידנית:\n'+text); }
+}
+
+function avg(a){return a.reduce((s,v)=>s+v,0)/a.length;}
+function std(a){const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);}
+</script>
+</body>
+</html>
