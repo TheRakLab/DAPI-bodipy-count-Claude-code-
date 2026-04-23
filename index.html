@@ -1,753 +1,2401 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DAPI + Lipid Analyzer</title>
+<title>CellScope — Cell Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Hebrew:wght@300;400;500&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0e17;--surf:#111827;--surf2:#1a2235;
-  --brd:#1e3a5f;--acc:#00d4ff;--grn:#10b981;--warn:#f59e0b;--red:#ef4444;
-  --txt:#e2e8f0;--muted:#64748b;
-  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans Hebrew',sans-serif;
-}
-body{font-family:var(--sans);background:var(--bg);color:var(--txt);height:100vh;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
-header{padding:.9rem 1.5rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.9rem;background:var(--surf)}
-.logo{width:26px;height:26px;border:2px solid var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center}
-.logo::after{content:'';width:8px;height:8px;background:var(--acc);border-radius:50%}
-header h1{font-family:var(--mono);font-size:.85rem;font-weight:600;color:var(--acc);letter-spacing:.06em}
-header small{font-size:.68rem;color:var(--muted)}
-main{display:grid;grid-template-columns:360px 1fr;overflow:hidden}
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
 
-/* ── LEFT PANEL ── */
-.left{background:var(--surf);border-left:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden}
-.lbl{font-family:var(--mono);font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;padding:.55rem 1rem .35rem;border-bottom:1px solid var(--brd);flex-shrink:0}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.drop-pair{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding:.7rem .9rem;flex-shrink:0}
-.dz{border:1.5px dashed var(--brd);border-radius:9px;padding:.85rem .4rem;text-align:center;cursor:pointer;transition:all .18s}
-.dz:hover,.dz.over{background:rgba(0,212,255,.04);border-color:var(--acc)}
-.dz.ok-dapi{border-color:var(--acc);background:rgba(0,212,255,.06)}
-.dz.ok-green{border-color:var(--grn);background:rgba(16,185,129,.06)}
-.dz input{display:none}
-.dz-icon{font-size:1.2rem;display:block;margin-bottom:.3rem}
-.dz-title{font-family:var(--mono);font-size:.62rem;font-weight:600;margin-bottom:.15rem}
-.ok-dapi .dz-title{color:var(--acc)}
-.ok-green .dz-title{color:var(--grn)}
-.dz p{font-size:.58rem;color:var(--muted);line-height:1.4}
-.fname{font-size:.56rem;color:var(--muted);margin-top:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #12151a;
+    --bg3: #1a1e26;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --text2: #8a9ab5;
+    --text3: #546080;
+    --dapi: #3b82f6;
+    --dapi-glow: rgba(59,130,246,0.3);
+    --green: #22d3a0;
+    --green-glow: rgba(34,211,160,0.3);
+    --accent: #a78bfa;
+    --accent-glow: rgba(167,139,250,0.25);
+    --danger: #f87171;
+    --warn: #fbbf24;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
 
-.ctrls{padding:.4rem .9rem .5rem;display:flex;flex-direction:column;gap:.45rem;flex-shrink:0}
-.ctrl label{font-family:var(--mono);font-size:.62rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:.15rem}
-.ctrl label span{color:var(--acc)}
-input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--brd);border-radius:2px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--acc);border-radius:50%;cursor:pointer}
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    font-size: 14px;
+  }
 
-.btns{display:flex;gap:.45rem;padding:0 .9rem .55rem;flex-shrink:0}
-.btn{flex:1;padding:.6rem;border:none;border-radius:7px;font-family:var(--mono);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .18s}
-.btn-p{background:var(--acc);color:var(--bg)}
-.btn-p:hover:not(:disabled){background:#00b8d9}
-.btn-p:disabled{opacity:.35;cursor:not-allowed}
-.btn-s{background:transparent;border:1px solid var(--brd);color:var(--muted)}
-.btn-s:hover{border-color:var(--acc);color:var(--acc)}
+  /* HEADER */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
 
-.prog{height:2px;background:var(--brd);margin:.2rem .9rem;border-radius:1px;overflow:hidden;display:none;flex-shrink:0}
-.prog-f{height:100%;background:var(--acc);width:0;transition:width .2s}
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+  }
 
-/* channel toggle */
-.ch-row{display:flex;gap:.35rem;padding:0 .9rem .45rem;flex-shrink:0}
-.ch-btn{flex:1;padding:.35rem;border-radius:5px;font-family:var(--mono);font-size:.62rem;cursor:pointer;border:1px solid var(--brd);background:transparent;color:var(--muted);transition:all .14s}
-.ch-btn.a-dapi{background:rgba(0,212,255,.13);border-color:var(--acc);color:var(--acc)}
-.ch-btn.a-green{background:rgba(16,185,129,.13);border-color:var(--grn);color:var(--grn)}
-.ch-btn.a-merge{background:rgba(140,140,255,.13);border-color:#9999ff;color:#bbbbff}
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: conic-gradient(var(--dapi) 0deg 180deg, var(--green) 180deg 360deg);
+    position: relative;
+  }
 
-.stats{flex:1;overflow-y:auto;padding:0 .9rem .9rem}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--bg2);
+  }
 
-/* summary */
-.sum-box{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.8rem .9rem;margin:.6rem 0;position:relative}
-.sum-title{font-family:var(--mono);font-size:.58rem;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.45rem}
-.sum-pre{font-family:var(--mono);font-size:.65rem;color:var(--txt);line-height:1.7;white-space:pre-wrap;word-break:break-word}
-.cpy{position:absolute;top:.6rem;left:.7rem;background:transparent;border:1px solid var(--brd);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:.58rem;padding:2px 7px;cursor:pointer;transition:all .14s}
-.cpy:hover{border-color:var(--acc);color:var(--acc)}
-.cpy.ok{color:var(--grn);border-color:var(--grn)}
+  .header-steps {
+    display: flex;
+    gap: 4px;
+  }
 
-.sg{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin:.45rem 0}
-.sc{background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.55rem .7rem}
-.sc .v{font-family:var(--mono);font-size:1.2rem;font-weight:600;color:var(--acc);line-height:1}
-.sc .v.g{color:var(--grn)}
-.sc .v.r{color:var(--red)}
-.sc .k{font-size:.58rem;color:var(--muted);margin-top:.18rem}
+  .step-pill {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+  }
 
-.hist{margin:.35rem 0 .6rem}
-.hr{display:flex;align-items:center;gap:.4rem;margin-bottom:4px}
-.hl{font-family:var(--mono);font-size:.56rem;color:var(--muted);width:52px;flex-shrink:0}
-.ht{flex:1;height:14px;background:var(--surf2);border-radius:2px;overflow:hidden;position:relative}
-.hf{height:100%;border-radius:2px;transition:width .45s ease}
-.hc{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:.54rem;color:rgba(255,255,255,.45)}
-.hp{font-family:var(--mono);font-size:.56rem;color:var(--muted);width:26px;text-align:right;flex-shrink:0}
+  .step-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
 
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.6rem}
-th{color:var(--muted);font-weight:500;padding:.3rem .4rem;text-align:left;border-bottom:1px solid var(--brd);white-space:nowrap}
-td{padding:.27rem .4rem;border-bottom:1px solid rgba(30,58,95,.35);color:var(--txt)}
-tr:hover td{background:var(--surf2)}
-tr.sel td{background:rgba(0,212,255,.07)}
-tr.excl td{opacity:.38}
-.dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:3px;vertical-align:middle}
-.badge{font-size:.52rem;padding:1px 5px;border-radius:3px}
-.b-ok{background:rgba(16,185,129,.12);color:var(--grn)}
-.b-ex{background:rgba(239,68,68,.12);color:var(--red)}
-.b-ves{background:rgba(245,158,11,.12);color:var(--warn)}
-.b-mix{background:rgba(153,153,255,.12);color:#aaaaff}
-.b-dif{background:rgba(100,116,139,.12);color:var(--muted)}
+  .step-pill.done {
+    border-color: var(--green);
+    color: var(--green);
+  }
 
-/* ── RIGHT PANEL ── */
-.right{position:relative;overflow:hidden;background:#050810;display:flex;align-items:center;justify-content:center}
-.cwrap{position:relative;display:inline-block}
-#iCvs{display:block}
-#oCvs{position:absolute;top:0;left:0;pointer-events:all}
-.empty{display:flex;flex-direction:column;align-items:center;gap:.9rem;color:var(--muted)}
-.ering{width:64px;height:64px;border:1.5px dashed var(--brd);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--brd)}
-.zbar{position:absolute;bottom:.75rem;right:.75rem;display:flex;gap:.3rem}
-.zb{width:28px;height:28px;background:var(--surf);border:1px solid var(--brd);border-radius:5px;color:var(--txt);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .13s}
-.zb:hover{border-color:var(--acc);color:var(--acc)}
-#tip{position:absolute;background:var(--surf);border:1px solid var(--brd);border-radius:7px;padding:.5rem .7rem;font-family:var(--mono);font-size:.63rem;pointer-events:none;display:none;z-index:10;min-width:165px}
-.ti{font-weight:600;margin-bottom:.25rem}
-.ti.ex{color:var(--red)}
-.ti.ok{color:var(--acc)}
-.tr{display:flex;justify-content:space-between;gap:.9rem;color:var(--muted)}
-.tr span{color:var(--txt)}
-.tr span.g{color:var(--grn)}
+  /* MAIN LAYOUT */
+  .app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 32px;
+  }
+
+  /* PANELS */
+  .panel {
+    display: none;
+  }
+
+  .panel.active {
+    display: block;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    margin-bottom: 16px;
+  }
+
+  /* UPLOAD PANEL */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .upload-zone {
+    border: 1px dashed var(--border2);
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--bg3);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(167,139,250,0.05);
+  }
+
+  .upload-zone.has-image {
+    padding: 0;
+    border-style: solid;
+    border-color: var(--border2);
+    overflow: hidden;
+  }
+
+  .upload-zone.dapi-zone.has-image {
+    border-color: var(--dapi);
+    box-shadow: 0 0 0 1px var(--dapi-glow);
+  }
+
+  .upload-zone.green-zone.has-image {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px var(--green-glow);
+  }
+
+  .upload-zone canvas, .upload-zone img {
+    width: 100%;
+    height: 260px;
+    object-fit: contain;
+    display: block;
+    border-radius: 9px;
+    background: #000;
+  }
+
+  .upload-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .dapi-icon { background: var(--dapi-glow); }
+  .green-icon { background: var(--green-glow); }
+
+  .upload-label {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .upload-label strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .badge-dapi {
+    display: inline-block;
+    background: var(--dapi-glow);
+    color: var(--dapi);
+    border: 1px solid rgba(59,130,246,0.4);
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+
+  .badge-green {
+    display: inline-block;
+    background: var(--green-glow);
+    color: var(--green);
+    border: 1px solid rgba(34,211,160,0.4);
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+
+  input[type=file] { display: none; }
+
+  /* OVERLAY CANVAS */
+  .overlay-container {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    height: 260px;
+  }
+
+  .overlay-container canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 9px;
+  }
+
+  /* PARAMS PANEL */
+  .params-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .param-item label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .param-item input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .param-val {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+  }
+
+  .param-val span {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* BUTTONS */
+  .btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text);
+    transition: all 0.2s;
+  }
+
+  .btn:hover { background: var(--bg3); }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 16px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    background: #b9a2ff;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  .btn-green {
+    background: var(--green);
+    border-color: var(--green);
+    color: #0a0c0f;
+    box-shadow: 0 0 16px var(--green-glow);
+  }
+
+  .btn-green:hover { background: #38e8b3; }
+
+  .btn-dapi {
+    background: var(--dapi);
+    border-color: var(--dapi);
+    color: #fff;
+    box-shadow: 0 0 16px var(--dapi-glow);
+  }
+
+  .btn-sm {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .btn-sheets {
+    background: #0f9d58;
+    border-color: #0f9d58;
+    color: #fff;
+    box-shadow: 0 0 14px rgba(15,157,88,0.3);
+  }
+
+  .btn-sheets:hover {
+    background: #12b362;
+    box-shadow: 0 0 22px rgba(15,157,88,0.45);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ANALYSIS LAYOUT */
+  .analysis-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--border);
+  }
+
+  #analysisCanvas, #manualCanvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+    border-radius: 9px;
+  }
+
+  /* MANUAL COUNT SIDEBAR */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .counter-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .counter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .counter-title {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .counter-num {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 500;
+    text-align: center;
+    margin: 8px 0;
+  }
+
+  .counter-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .counter-controls button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 7px;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+
+  .counter-controls button:hover { filter: brightness(1.2); }
+
+  .click-mode-toggle {
+    width: 100%;
+    padding: 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+
+  .click-mode-toggle.active-nuc {
+    border-color: var(--dapi);
+    color: var(--dapi);
+    background: var(--dapi-glow);
+  }
+
+  .click-mode-toggle.active-diff {
+    border-color: var(--green);
+    color: var(--green);
+    background: var(--green-glow);
+  }
+
+  /* MARKERS ON CANVAS */
+  .canvas-wrap .markers-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    border-radius: 9px;
+  }
+
+  /* NOTES */
+  .notes-area {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 10px;
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  /* RESULTS TABLE */
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .results-table th {
+    text-align: right;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .results-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .results-table tr:last-child td { border-bottom: none; }
+  .results-table tr:hover td { background: var(--bg3); }
+
+  .td-val {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text) !important;
+  }
+
+  .td-highlight { color: var(--green) !important; }
+
+  /* CHANNEL TOGGLE */
+  .channel-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .ch-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text3);
+    transition: all 0.2s;
+  }
+
+  .ch-btn.dapi-active {
+    background: var(--dapi-glow);
+    border-color: var(--dapi);
+    color: var(--dapi);
+  }
+
+  .ch-btn.green-active {
+    background: var(--green-glow);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .ch-btn.both-active {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* SAMPLE INFO */
+  .sample-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .sample-field label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .sample-field input, .sample-field select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .sample-field input:focus, .sample-field select:focus {
+    border-color: var(--accent);
+  }
+
+  .sample-field select option { background: var(--bg3); }
+
+  /* PROGRESS */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 12px 0;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--dapi), var(--green));
+    border-radius: 2px;
+    transition: width 0.4s;
+    width: 0%;
+  }
+
+  /* ALERTS */
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .alert-warn {
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.3);
+    color: var(--warn);
+  }
+
+  .alert-info {
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.2);
+    color: #7db8f5;
+  }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .section-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .analysis-layout { grid-template-columns: 1fr; }
+    .params-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .upload-grid { grid-template-columns: 1fr; }
+    .sample-grid { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
+
 <header>
-  <div class="logo"></div>
-  <h1>DAPI + LIPID ANALYZER</h1>
-  <small>// ניתוח דו-ערוצי פלואורסצנציה</small>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    CellScope
+  </div>
+  <div class="header-steps">
+    <button class="step-pill active" onclick="goStep(0)" id="step0">01 Images</button>
+    <button class="step-pill" onclick="goStep(1)" id="step1">02 Analysis</button>
+    <button class="step-pill" onclick="goStep(2)" id="step2">03 Manual Count</button>
+    <button class="step-pill" onclick="goStep(3)" id="step3">04 Export</button>
+    <button class="step-pill" onclick="goStep(4)" id="step4">05 Sheet 📋</button>
+  </div>
 </header>
-<main>
-<div class="left">
-  <div class="lbl">// טעינת ערוצים</div>
-  <div class="drop-pair">
-    <div class="dz" id="dzD" onclick="document.getElementById('fD').click()">
-      <input type="file" id="fD" accept="image/*">
-      <span class="dz-icon">◉</span>
-      <div class="dz-title">DAPI</div>
-      <p>גרעיני תאים</p>
-      <div class="fname" id="nmD">לא נטען</div>
+
+<div class="app">
+
+  <!-- STEP 0: UPLOAD -->
+  <div class="panel active" id="panel0">
+    <p class="section-title">Image Upload</p>
+    <p class="section-sub">Upload a matching image pair — DAPI for nuclei and green fluorescence for the marker.</p>
+
+    <div class="sample-grid">
+      <div class="sample-field">
+        <label>Sample Name</label>
+        <input type="text" id="sampleName" placeholder="e.g. Sample_A1" />
+      </div>
+      <div class="sample-field">
+        <label>Cell Type</label>
+        <input type="text" id="cellType" placeholder="e.g. SH-SY5Y" />
+      </div>
+      <div class="sample-field">
+        <label>Date</label>
+        <input type="date" id="expDate" />
+      </div>
+      <div class="sample-field">
+        <label>Experiment Condition</label>
+        <input type="text" id="condition" placeholder="e.g. 24h differentiation" />
+      </div>
+      <div class="sample-field">
+        <label>Magnification (Objective)</label>
+        <select id="objective">
+          <option>10x</option>
+          <option>20x</option>
+          <option selected>40x</option>
+          <option>60x</option>
+          <option>100x</option>
+        </select>
+      </div>
+      <div class="sample-field">
+        <label>Notes</label>
+        <input type="text" id="expNotes" placeholder="Free-form notes..." />
+      </div>
     </div>
-    <div class="dz" id="dzG" onclick="document.getElementById('fG').click()">
-      <input type="file" id="fG" accept="image/*">
-      <span class="dz-icon">◈</span>
-      <div class="dz-title">ירוק</div>
-      <p>צביעת שומן</p>
-      <div class="fname" id="nmG">לא נטען</div>
+
+    <div class="upload-grid">
+      <div>
+        <div class="badge-dapi">DAPI — Nuclei</div>
+        <div class="upload-zone dapi-zone" id="dapiZone" onclick="document.getElementById('dapiFile').click()" ondrop="handleDrop(event,'dapi')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+          <div class="upload-icon dapi-icon">🔵</div>
+          <div class="upload-label">
+            <strong>DAPI / Hoechst</strong>
+            Drag image here<br>or click to select
+          </div>
+          <canvas id="dapiPreview" style="display:none"></canvas>
+        </div>
+        <input type="file" id="dapiFile" accept="image/*" onchange="loadImage(event,'dapi')">
+      </div>
+
+      <div>
+        <div class="badge-green">GFP / Alexa488 — Green</div>
+        <div class="upload-zone green-zone" id="greenZone" onclick="document.getElementById('greenFile').click()" ondrop="handleDrop(event,'green')" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+          <div class="upload-icon green-icon">🟢</div>
+          <div class="upload-label">
+            <strong>Green Fluorescence</strong>
+            Drag image here<br>or click to select
+          </div>
+          <canvas id="greenPreview" style="display:none"></canvas>
+        </div>
+        <input type="file" id="greenFile" accept="image/*" onchange="loadImage(event,'green')">
+      </div>
+    </div>
+
+    <div id="uploadAlert" class="alert alert-warn" style="display:none">
+      ⚠️ Please upload both images before continuing
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="proceedToAnalysis()">Continue to Analysis →</button>
     </div>
   </div>
 
-  <div class="lbl">// פרמטרים</div>
-  <div class="ctrls">
-    <div class="ctrl">
-      <label>רגישות adaptive <span id="vT">-10</span></label>
-      <input type="range" id="sT" min="-50" max="50" value="-10">
+  <!-- STEP 1: ANALYSIS -->
+  <div class="panel" id="panel1">
+    <p class="section-title">Automatic Nucleus Detection</p>
+    <p class="section-sub">Tune the detection parameters and click "Analyze" to count nuclei in the DAPI channel.</p>
+
+    <div class="card" style="margin-bottom:16px">
+      <p class="card-title">Nucleus Detection Parameters
+        <span id="paramsSavedBadge" style="display:none;font-size:10px;color:var(--green);font-family:var(--mono);margin-right:10px;">✓ Saved</span>
+      </p>
+      <div class="params-grid">
+        <div class="param-item">
+          <label>Adaptive sensitivity <span style="font-size:10px;color:var(--text3)">(local threshold)</span></label>
+          <input type="range" id="threshSlider" min="-50" max="50" value="-10" oninput="updateNewParam('threshSlider','threshVal', v=>(v>0?'+':'')+v)">
+          <div class="param-val"><span style="font-size:10px;color:var(--text3)">−50</span><span id="threshVal">-10</span><span style="font-size:10px;color:var(--text3)">+50</span></div>
+        </div>
+        <div class="param-item">
+          <label>Min size (px radius)</label>
+          <input type="range" id="minSzSlider" min="5" max="200" value="20" oninput="updateNewParam('minSzSlider','minSzVal')">
+          <div class="param-val"><span style="font-size:10px;color:var(--text3)">5</span><span id="minSzVal">20</span><span style="font-size:10px;color:var(--text3)">200</span></div>
+        </div>
+        <div class="param-item">
+          <label>Max size (px radius)</label>
+          <input type="range" id="maxSzSlider" min="50" max="800" value="300" oninput="updateNewParam('maxSzSlider','maxSzVal')">
+          <div class="param-val"><span style="font-size:10px;color:var(--text3)">50</span><span id="maxSzVal">300</span><span style="font-size:10px;color:var(--text3)">800</span></div>
+        </div>
+        <div class="param-item">
+          <label>Circularity threshold (0–1)</label>
+          <input type="range" id="circSlider" min="0" max="100" value="60" oninput="updateNewParam('circSlider','circVal', v=>(v/100).toFixed(2))">
+          <div class="param-val"><span style="font-size:10px;color:var(--text3)">0</span><span id="circVal">0.60</span><span style="font-size:10px;color:var(--text3)">1.0</span></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-dapi" onclick="runAnalysis()">▶ Analyze Nuclei</button>
+        <button class="btn btn-sm" onclick="resetParams()">Reset Parameters</button>
+      </div>
+      <div class="progress-bar" id="analysisProg"><div class="progress-fill" id="analysisProgFill"></div></div>
     </div>
-    <div class="ctrl">
-      <label>רדיוס מינימלי px <span id="vMn">8</span></label>
-      <input type="range" id="sMn" min="3" max="150" value="8">
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="autoCount" style="color:var(--dapi)">—</div>
+        <div class="stat-label">Nuclei (auto)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="avgArea" style="color:var(--text2)">—</div>
+        <div class="stat-label">Avg Area (px²)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="avgIntensity" style="color:var(--text2)">—</div>
+        <div class="stat-label">Avg Intensity</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="coveragePct" style="color:var(--text2)">—</div>
+        <div class="stat-label">Area Coverage (%)</div>
+      </div>
     </div>
-    <div class="ctrl">
-      <label>רדיוס מקסימלי px <span id="vMx">120</span></label>
-      <input type="range" id="sMx" min="20" max="400" value="120">
-    </div>
-    <div class="ctrl">
-      <label>עגוליות מינימלית <span id="vC">0.50</span></label>
-      <input type="range" id="sC" min="0" max="100" value="50">
-    </div>
-    <div class="ctrl">
-      <label>רדיוס מדידה ירוק (px קבוע) <span id="vM">40</span></label>
-      <input type="range" id="sM" min="10" max="200" value="40">
-    </div>
-    <div class="ctrl">
-      <label>סף עוצמה ירוקה <span id="vG">15</span></label>
-      <input type="range" id="sG" min="1" max="100" value="15">
+
+    <div class="analysis-layout">
+      <div>
+        <div class="channel-toggle">
+          <button class="ch-btn dapi-active" id="chDapi" onclick="setChannel('dapi')">DAPI</button>
+          <button class="ch-btn" id="chGreen" onclick="setChannel('green')">Green</button>
+          <button class="ch-btn" id="chBoth" onclick="setChannel('both')">Overlay</button>
+          <button class="ch-btn" id="chOverlay" onclick="setChannel('overlay')">+ Detection</button>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="analysisCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="card">
+          <p class="card-title" id="opCardTitle">Layer Opacity</p>
+
+          <div id="opDapiRow" style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;color:var(--dapi);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px;">🔵 DAPI</label>
+              <span id="dapiOpVal" style="font-family:var(--mono);font-size:11px;color:var(--dapi)">100%</span>
+            </div>
+            <input type="range" min="0" max="100" value="100" id="dapiOpacity"
+              oninput="document.getElementById('dapiOpVal').textContent=this.value+'%';redrawView()"
+              style="width:100%;accent-color:var(--dapi)">
+          </div>
+
+          <div id="opGreenRow" style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;color:var(--green);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px;">🟢 Green</label>
+              <span id="greenOpVal" style="font-family:var(--mono);font-size:11px;color:var(--green)">60%</span>
+            </div>
+            <input type="range" min="0" max="100" value="60" id="greenOpacity"
+              oninput="document.getElementById('greenOpVal').textContent=this.value+'%';redrawView()"
+              style="width:100%;accent-color:var(--green)">
+          </div>
+
+          <div id="opDetectRow">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;color:var(--accent);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px;">⭕ Detection</label>
+              <span id="overlayOpVal" style="font-family:var(--mono);font-size:11px;color:var(--accent)">80%</span>
+            </div>
+            <input type="range" min="0" max="100" value="80" id="overlayOpacity"
+              oninput="document.getElementById('overlayOpVal').textContent=this.value+'%';redrawView()"
+              style="width:100%;accent-color:var(--accent)">
+          </div>
+        </div>
+
+        <div class="btn-row" style="flex-direction:column;align-items:stretch">
+          <button class="btn btn-primary" onclick="goStep(2)">Continue to Manual Count →</button>
+          <button class="btn" onclick="goStep(0)">← Back to Images</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="btns">
-    <button class="btn btn-p" id="btnA" disabled onclick="startAnalysis()">▶ נתח</button>
-    <button class="btn btn-s" onclick="doReset()">↺ אפס</button>
+  <!-- STEP 2: MANUAL COUNT -->
+  <div class="panel" id="panel2">
+    <p class="section-title">Manual Count</p>
+    <p class="section-sub">Click the image to mark nuclei manually, and mark differentiated cells (GFP+) directly on the green channel.</p>
+
+    <div class="alert alert-info" style="margin-bottom:16px">
+      💡 Click <strong>Auto 🔵</strong> to import automatic detection results as a starting point. Right-click a marker to remove it. Left-click to add a nucleus/cell.
+    </div>
+
+    <div class="analysis-layout">
+      <div>
+        <div class="channel-toggle" style="margin-bottom:12px">
+          <button class="ch-btn dapi-active" id="manChDapi" onclick="setManChannel('dapi')">DAPI</button>
+          <button class="ch-btn" id="manChGreen" onclick="setManChannel('green')">Green</button>
+          <button class="ch-btn" id="manChBoth" onclick="setManChannel('both')">Overlay</button>
+          <button class="ch-btn" id="manChAuto" onclick="toggleAutoOnManual()" title="Show/hide automatic detection markers">Auto 🔵</button>
+        </div>
+        <div class="canvas-wrap" style="cursor:crosshair">
+          <canvas id="manualCanvas" onclick="handleManualClick(event)" oncontextmenu="handleManualRightClick(event)"></canvas>
+        </div>
+      </div>
+
+      <div class="sidebar">
+
+        <!-- Overlay mix controls — visible only in 'both' channel -->
+        <div class="card" id="manOverlayControls" style="display:none">
+          <p class="card-title">Channel Mix</p>
+          <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;color:var(--dapi);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px;">🔵 DAPI</label>
+              <span id="manDapiOpVal" style="font-family:var(--mono);font-size:11px;color:var(--dapi)">100%</span>
+            </div>
+            <input type="range" min="0" max="100" value="100" id="manDapiOpacity"
+              oninput="document.getElementById('manDapiOpVal').textContent=this.value+'%';redrawManualFull()"
+              style="width:100%;accent-color:var(--dapi)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;color:var(--green);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px;">🟢 Green</label>
+              <span id="manGreenOpVal" style="font-family:var(--mono);font-size:11px;color:var(--green)">60%</span>
+            </div>
+            <input type="range" min="0" max="100" value="60" id="manGreenOpacity"
+              oninput="document.getElementById('manGreenOpVal').textContent=this.value+'%';redrawManualFull()"
+              style="width:100%;accent-color:var(--green)">
+          </div>
+        </div>
+
+        <div class="counter-box">
+          <div class="counter-header">
+            <span class="counter-title">Nuclei (manual)</span>
+            <button class="btn btn-sm" onclick="undoLast('nucleus')" style="font-size:11px;padding:3px 8px">Undo Last</button>
+          </div>
+          <button class="click-mode-toggle" id="modeNucleus" onclick="setClickMode('nucleus')">
+            🔵 Click to mark nucleus
+          </button>
+          <div class="counter-num" id="manNucCount" style="color:var(--dapi)">0</div>
+          <div class="counter-controls">
+            <button onclick="adjustManual('nucleus',-1)">−</button>
+            <button onclick="adjustManual('nucleus',1)">+</button>
+          </div>
+        </div>
+
+        <div class="counter-box">
+          <div class="counter-header">
+            <span class="counter-title">Differentiated Cells</span>
+            <button class="btn btn-sm" onclick="undoLast('diff')" style="font-size:11px;padding:3px 8px">Undo Last</button>
+          </div>
+          <button class="click-mode-toggle" id="modeDiff" onclick="setClickMode('diff')">
+            🟢 Click to mark diff. cell
+          </button>
+          <div class="counter-num" id="manDiffCount" style="color:var(--green)">0</div>
+          <div class="counter-controls">
+            <button onclick="adjustManual('diff',-1)">−</button>
+            <button onclick="adjustManual('diff',1)">+</button>
+          </div>
+        </div>
+
+        <div class="counter-box">
+          <div class="counter-header">
+            <span class="counter-title" style="color:var(--green)">% Differentiation</span>
+          </div>
+          <div class="counter-num" id="diffPercent" style="color:var(--green);font-size:24px">—</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-align:center">(diff / nuclei)</div>
+        </div>
+
+        <div class="card">
+          <p class="card-title">Count Notes</p>
+          <textarea class="notes-area" id="countNotes" placeholder="Add notes about the manual count..."></textarea>
+        </div>
+
+        <div class="btn-row" style="flex-direction:column;align-items:stretch">
+          <button class="btn btn-green" onclick="goStep(3)">Continue to Export →</button>
+          <button class="btn" onclick="goStep(1)">← Back to Analysis</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="prog" id="prog"><div class="prog-f" id="pf"></div></div>
+  <!-- STEP 3: EXPORT -->
+  <div class="panel" id="panel3">
+    <p class="section-title">Summary & Export</p>
+    <p class="section-sub">Review all collected data. Export to Excel for further analysis.</p>
 
-  <div class="lbl">// תצוגה</div>
-  <div class="ch-row">
-    <button class="ch-btn a-dapi" id="chD" onclick="setCh('dapi')">DAPI</button>
-    <button class="ch-btn" id="chG2" onclick="setCh('green')">ירוק</button>
-    <button class="ch-btn" id="chM" onclick="setCh('merge')">מיזוג</button>
+    <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-num" id="expAutoCount" style="color:var(--dapi)">—</div>
+        <div class="stat-label">Auto Nuclei</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="expManNuc" style="color:var(--text2)">—</div>
+        <div class="stat-label">Manual Nuclei</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="expManDiff" style="color:var(--green)">—</div>
+        <div class="stat-label">Differentiated Cells</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+      <div class="card">
+        <p class="card-title">Sample Data</p>
+        <table class="results-table">
+          <tr><td>Sample Name</td><td class="td-val" id="rSampleName">—</td></tr>
+          <tr><td>Cell Type</td><td class="td-val" id="rCellType">—</td></tr>
+          <tr><td>Date</td><td class="td-val" id="rDate">—</td></tr>
+          <tr><td>Condition</td><td class="td-val" id="rCondition">—</td></tr>
+          <tr><td>Magnification</td><td class="td-val" id="rObjective">—</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Analysis Data</p>
+        <table class="results-table">
+          <tr><td>DAPI Auto Count</td><td class="td-val td-highlight" id="rAutoCount">—</td></tr>
+          <tr><td>Avg Nucleus Area (px²)</td><td class="td-val" id="rAvgArea">—</td></tr>
+          <tr><td>Avg Intensity</td><td class="td-val" id="rAvgInt">—</td></tr>
+          <tr><td>Area Coverage</td><td class="td-val" id="rCoverage">—</td></tr>
+          <tr><td>Manual Nuclei Count</td><td class="td-val" id="rManNuc">—</td></tr>
+          <tr><td>Manual Count Diff. Cells</td><td class="td-val" style="color:var(--green)" id="rManDiff">—</td></tr>
+          <tr><td>Differentiation %</td><td class="td-val" style="color:var(--green)" id="rDiffPct">—</td></tr>
+          <tr><td>Notes</td><td class="td-val" id="rNotes" style="font-size:12px;word-break:break-word">—</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="exportExcel()">⬇ Export to Excel (.xlsx)</button>
+      <button class="btn btn-primary" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn btn-sheets" onclick="openSheetsModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:middle;margin-left:5px"><rect x="3" y="3" width="18" height="18" rx="3" fill="#0f9d58"/><rect x="7" y="8" width="10" height="1.5" rx="0.75" fill="white"/><rect x="7" y="11.25" width="10" height="1.5" rx="0.75" fill="white"/><rect x="7" y="14.5" width="6" height="1.5" rx="0.75" fill="white"/></svg>
+        Save to Google Sheets
+      </button>
+      <button class="btn" onclick="printSummary()">🖨 Print Summary</button>
+      <button class="btn" id="saveLocalBtn" onclick="saveLocalOnly()">💾 Save Locally</button>
+      <button class="btn" onclick="newSession()">+ New Analysis</button>
+    </div>
   </div>
 
-  <div class="lbl">// תוצאות</div>
-  <div class="stats" id="stats"><div style="color:var(--muted);font-size:.72rem;padding:.4rem 0">טען שני קבצים ולחץ נתח</div></div>
+  <!-- STEP 4: LOCAL HISTORY TABLE -->
+  <div class="panel" id="panel4">
+    <p class="section-title">Local Data Sheet</p>
+    <p class="section-sub">All analyses saved on this device. Data is stored in the browser and persists between sessions.</p>
+
+    <div id="historyEmpty" style="display:none;text-align:center;padding:60px 20px;">
+      <div style="font-size:48px;margin-bottom:12px;">📋</div>
+      <p style="color:var(--text2);font-size:14px;">No saved data yet.<br>Click <strong style="color:var(--text)">"Save to Google Sheets"</strong> or <strong style="color:var(--text)">"Save Locally"</strong> in the Export tab.</p>
+    </div>
+
+    <div id="historyTableWrap" style="overflow-x:auto;margin-bottom:20px;">
+      <table class="results-table" id="historyTable" style="min-width:900px;">
+        <thead>
+          <tr>
+            <th style="white-space:nowrap">#</th>
+            <th style="white-space:nowrap">Saved At</th>
+            <th style="white-space:nowrap">Sample Name</th>
+            <th style="white-space:nowrap">Cell Type</th>
+            <th style="white-space:nowrap">Condition</th>
+            <th style="white-space:nowrap">Magnification</th>
+            <th style="white-space:nowrap">DAPI File</th>
+            <th style="white-space:nowrap">Green File</th>
+            <th style="white-space:nowrap">Auto Nuclei</th>
+            <th style="white-space:nowrap">Avg Area</th>
+            <th style="white-space:nowrap">Manual Nuclei</th>
+            <th style="white-space:nowrap">Diff. Cells</th>
+            <th style="white-space:nowrap">Diff. %</th>
+            <th style="white-space:nowrap"></th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="exportHistoryExcel()">⬇ Export All to Excel</button>
+      <button class="btn btn-primary" onclick="exportHistoryCSV()">⬇ Export CSV</button>
+      <button class="btn" onclick="clearHistory()" style="color:var(--danger);border-color:var(--danger);">🗑 Clear All</button>
+    </div>
+  </div>
+
+  <!-- GOOGLE SHEETS MODAL -->
+  <div id="sheetsModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;">
+    <div id="sheetsModal" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:28px 32px;width:520px;max-width:95vw;position:relative;">
+      <button onclick="closeSheetsModal()" style="position:absolute;top:12px;left:16px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="4" fill="#0f9d58"/><rect x="6" y="7" width="12" height="2" rx="1" fill="white"/><rect x="6" y="11" width="12" height="2" rx="1" fill="white"/><rect x="6" y="15" width="7" height="2" rx="1" fill="white"/></svg>
+        <span style="font-size:16px;font-weight:500;">Save to Google Sheets</span>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:20px;line-height:1.6;">Each click appends one row with the current analysis data to your spreadsheet.</p>
+
+      <!-- STEP A: URL input -->
+      <div id="sheetsStepA">
+        <label style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:7px;">Apps Script Web App URL</label>
+        <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;outline:none;font-family:var(--mono);margin-bottom:12px;"
+          oninput="saveSheetsUrl()" />
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+          <p style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">One-time Setup — Steps</p>
+          <ol style="font-size:12px;color:var(--text2);line-height:2;padding-right:16px;list-style:decimal;">
+            <li>Open a <a href="https://sheets.google.com" target="_blank" style="color:var(--green)">new Google Sheet</a> and save it</li>
+            <li>In the menu: <strong style="color:var(--text)">Extensions → Apps Script</strong></li>
+            <li>Delete existing code, paste <span style="color:var(--accent);cursor:pointer;text-decoration:underline;" onclick="copyAppsScript()">our script</span> and save</li>
+            <li>Click <strong style="color:var(--text)">Deploy → New Deployment</strong></li>
+            <li>Choose <strong style="color:var(--text)">Web app</strong>, set access to: <em>Anyone</em></li>
+            <li>Copy the generated URL and paste it above</li>
+          </ol>
+        </div>
+
+        <div style="background:var(--bg3);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;position:relative;">
+          <p style="font-size:11px;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Apps Script code to copy</p>
+          <pre id="appsScriptCode" style="font-size:10.5px;color:var(--text2);line-height:1.6;white-space:pre-wrap;font-family:var(--mono);overflow:hidden;">function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getActiveSheet();
+
+  // Add header row if sheet is empty
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      'saved_at','sample_name','cell_type',
+      'exp_date','condition','magnification',
+      'auto_nuclei','avg_area_px2',
+      'manual_nuclei','diff_cells','diff_pct'
+    ]);
+    sheet.getRange(1,1,1,11)
+      .setFontWeight('bold')
+      .setBackground('#0f9d58')
+      .setFontColor('#ffffff');
+  }
+
+  sheet.appendRow([
+    data.savedAt, data.sampleName, data.cellType,
+    data.date, data.condition, data.objective,
+    data.autoCount, data.avgArea,
+    data.manualNuclei, data.manualDiff, data.diffPercent
+  ]);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({status:'ok'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+          <button onclick="copyAppsScript()" style="position:absolute;top:10px;left:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;font-family:var(--mono);padding:4px 10px;cursor:pointer;" id="copyBtn">Copy</button>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-sheets" style="flex:1" onclick="sendToSheets()">Save Row Now ↗</button>
+          <button class="btn" onclick="closeSheetsModal()">Close</button>
+        </div>
+      </div>
+
+      <!-- STATUS -->
+      <div id="sheetsStatus" style="display:none;text-align:center;padding:16px 0;">
+        <div id="sheetsStatusIcon" style="font-size:32px;margin-bottom:8px;">⏳</div>
+        <div id="sheetsStatusText" style="font-size:14px;color:var(--text2);">Sending data...</div>
+      </div>
+    </div>
+  </div>
+
 </div>
-
-<div class="right" id="rp">
-  <div class="empty" id="es"><div class="ering">⊕</div><p>טען DAPI + ירוק</p></div>
-  <div class="cwrap" id="cw" style="display:none">
-    <canvas id="iCvs"></canvas>
-    <canvas id="oCvs"></canvas>
-  </div>
-  <div id="tip"></div>
-  <div class="zbar">
-    <button class="zb" onclick="doZoom(1.25)">+</button>
-    <button class="zb" onclick="doZoom(0.8)">−</button>
-    <button class="zb" onclick="resetZoom()">⌖</button>
-  </div>
-</div>
-</main>
-<canvas id="pc" style="display:none"></canvas>
 
 <script>
-// ── STATE ──
-let imgD=null, imgG=null, grayD=null, grayG=null;
-let iW=0,iH=0, dscale=1, ch='dapi';
-let circles=[], selIdx=-1;
-let fnD='',fnG='';
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+const state = {
+  dapiImg: null,
+  greenImg: null,
+  dapiCanvas: null,
+  greenCanvas: null,
+  dapiFileName: '',
+  greenFileName: '',
+  autoNuclei: [],
+  manNuclei: [],
+  manDiff: [],
+  clickMode: 'nucleus',
+  viewChannel: 'dapi',
+  manViewChannel: 'dapi',
+  showAutoOnManual: false,
+  avgNucRadius: 0
+};
 
-// ── SLIDERS ──
-const SL=[['sT','vT',v=>(v>0?'+':'')+v],['sMn','vMn',v=>v],['sMx','vMx',v=>v],
-          ['sC','vC',v=>(v/100).toFixed(2)],['sM','vM',v=>v],['sG','vG',v=>v]];
-SL.forEach(([s,v,f])=>{ document.getElementById(s).oninput=e=>document.getElementById(v).textContent=f(e.target.value); });
-
-// ── FILE LOAD ──
-function setupDZ(dzId,inId,side){
-  const dz=document.getElementById(dzId);
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
-  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadCh(f,side)});
-  document.getElementById(inId).onchange=function(){if(this.files[0])loadCh(this.files[0],side)};
-}
-setupDZ('dzD','fD','dapi');
-setupDZ('dzG','fG','green');
-
-function loadCh(file,side){
-  const r=new FileReader();
-  r.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      if(side==='dapi'){imgD=img;fnD=file.name;document.getElementById('dzD').className='dz ok-dapi';document.getElementById('nmD').textContent=file.name;}
-      else{imgG=img;fnG=file.name;document.getElementById('dzG').className='dz ok-green';document.getElementById('nmG').textContent=file.name;}
-      if(imgD&&imgG){document.getElementById('btnA').disabled=false;document.getElementById('es').style.display='none';document.getElementById('cw').style.display='block';redraw();}
-    };
-    img.src=e.target.result;
-  };
-  r.readAsDataURL(file);
-}
-
-// ── CHANNEL / DRAW ──
-function setCh(c){
-  ch=c;
-  ['dapi','green','merge'].forEach(x=>{
-    const id='ch'+(x==='dapi'?'D':x==='green'?'G2':'M');
-    document.getElementById(id).className='ch-btn'+(ch===x?' a-'+x:'');
+// ──────────────────────────────────────────────
+// NAVIGATION
+// ──────────────────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i===n));
+  document.querySelectorAll('.step-pill').forEach((p,i) => {
+    p.classList.remove('active','done');
+    if(i===n) p.classList.add('active');
+    else if(i<n) p.classList.add('done');
   });
-  redraw();
-  if(circles.length) drawOverlay();
+  if(n===1 && state.dapiImg) { setTimeout(()=>{initAnalysisCanvas();redrawView();},50); }
+  if(n===2 && state.dapiImg) { setTimeout(()=>{initManualCanvas();},50); }
+  if(n===3) updateExportPanel();
+  if(n===4) renderHistoryTable();
 }
 
-function redraw(){
-  if(!imgD) return;
-  const rp=document.getElementById('rp');
-  const mW=rp.clientWidth-20, mH=rp.clientHeight-20;
-  dscale=Math.min(mW/imgD.width,mH/imgD.height,1);
-  iW=imgD.width; iH=imgD.height;
-  const dW=Math.round(iW*dscale), dH=Math.round(iH*dscale);
-  const ic=document.getElementById('iCvs'), oc=document.getElementById('oCvs');
-  ic.width=oc.width=dW; ic.height=oc.height=dH;
-  const ctx=ic.getContext('2d');
-
-  if(ch==='merge'&&imgG){
-    const tmp=document.createElement('canvas'); tmp.width=iW; tmp.height=iH;
-    const tc=tmp.getContext('2d');
-    tc.drawImage(imgD,0,0); const dd=tc.getImageData(0,0,iW,iH).data;
-    tc.clearRect(0,0,iW,iH); tc.drawImage(imgG,0,0); const gd=tc.getImageData(0,0,iW,iH).data;
-    const out=tc.createImageData(iW,iH);
-    for(let i=0;i<iW*iH;i++){
-      const dg=(77*dd[i*4]+150*dd[i*4+1]+29*dd[i*4+2])>>8;
-      const gg=(77*gd[i*4]+150*gd[i*4+1]+29*gd[i*4+2])>>8;
-      out.data[i*4]=Math.min(255,dg*.25)|0;
-      out.data[i*4+1]=Math.min(255,gg)|0;
-      out.data[i*4+2]=Math.min(255,dg)|0;
-      out.data[i*4+3]=255;
-    }
-    tc.putImageData(out,0,0); ctx.drawImage(tmp,0,0,dW,dH);
-  } else {
-    ctx.drawImage(ch==='green'?(imgG||imgD):imgD,0,0,dW,dH);
+// ──────────────────────────────────────────────
+// IMAGE LOADING
+// ──────────────────────────────────────────────
+function handleDrop(e, ch) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) {
+    if(ch==='dapi') state.dapiFileName = f.name;
+    else state.greenFileName = f.name;
+    const reader = new FileReader();
+    reader.onload = ev => loadImageFromSrc(ev.target.result, ch);
+    reader.readAsDataURL(f);
   }
 }
 
-// ── PROGRESS ──
-function prog(p){
-  const b=document.getElementById('prog'), f=document.getElementById('pf');
-  b.style.display='block'; f.style.width=p+'%';
-  if(p>=100) setTimeout(()=>b.style.display='none',500);
+function loadImage(e, ch) {
+  const f = e.target.files[0];
+  if(!f) return;
+  if(ch==='dapi') state.dapiFileName = f.name;
+  else state.greenFileName = f.name;
+  const reader = new FileReader();
+  reader.onload = ev => loadImageFromSrc(ev.target.result, ch);
+  reader.readAsDataURL(f);
 }
 
-// ── ANALYSIS ──
-function startAnalysis(){
-  if(!imgD||!imgG) return;
-  document.getElementById('btnA').disabled=true;
-  circles=[]; selIdx=-1;
-  prog(5);
+function loadImageFromSrc(src, ch) {
+  const img = new Image();
+  img.onload = () => {
+    const offscreen = document.createElement('canvas');
+    offscreen.width = img.naturalWidth;
+    offscreen.height = img.naturalHeight;
+    offscreen.getContext('2d').drawImage(img, 0, 0);
+
+    if(ch==='dapi') {
+      state.dapiImg = img;
+      state.dapiCanvas = offscreen;
+      const prev = document.getElementById('dapiPreview');
+      prev.width = img.naturalWidth;
+      prev.height = img.naturalHeight;
+      prev.getContext('2d').drawImage(img,0,0);
+      prev.style.display = 'block';
+      const zone = document.getElementById('dapiZone');
+      zone.innerHTML = '';
+      zone.classList.add('has-image');
+      zone.appendChild(prev);
+      prev.style.display = 'block';
+    } else {
+      state.greenImg = img;
+      state.greenCanvas = offscreen;
+      const prev = document.getElementById('greenPreview');
+      prev.width = img.naturalWidth;
+      prev.height = img.naturalHeight;
+      prev.getContext('2d').drawImage(img,0,0);
+      prev.style.display = 'block';
+      const zone = document.getElementById('greenZone');
+      zone.innerHTML = '';
+      zone.classList.add('has-image');
+      zone.appendChild(prev);
+      prev.style.display = 'block';
+    }
+  };
+  img.src = src;
+}
+
+function proceedToAnalysis() {
+  if(!state.dapiImg) {
+    document.getElementById('uploadAlert').style.display = 'flex';
+    return;
+  }
+  document.getElementById('uploadAlert').style.display = 'none';
+  goStep(1);
+}
+
+// ──────────────────────────────────────────────
+// PARAMS — with localStorage persistence
+// ──────────────────────────────────────────────
+const PARAM_DEFAULTS = { threshSlider:-10, minSzSlider:20, maxSzSlider:300, circSlider:60 };
+const PARAM_DISPLAY = {
+  threshSlider: v => (v>0?'+':'')+v,
+  minSzSlider:  v => String(v),
+  maxSzSlider:  v => String(v),
+  circSlider:   v => (v/100).toFixed(2)
+};
+const PARAM_VAL_IDS = { threshSlider:'threshVal', minSzSlider:'minSzVal', maxSzSlider:'maxSzVal', circSlider:'circVal' };
+
+function loadSavedParams() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('cellscope_params') || 'null');
+    const src = saved || PARAM_DEFAULTS;
+    Object.entries(src).forEach(([k,v]) => {
+      const el = document.getElementById(k);
+      if (el) { el.value = v; document.getElementById(PARAM_VAL_IDS[k]).textContent = PARAM_DISPLAY[k](v); }
+    });
+  } catch(e) {}
+}
+
+function saveParams() {
+  try {
+    const vals = {};
+    Object.keys(PARAM_DEFAULTS).forEach(k => { vals[k] = parseInt(document.getElementById(k).value); });
+    localStorage.setItem('cellscope_params', JSON.stringify(vals));
+    const badge = document.getElementById('paramsSavedBadge');
+    if (badge) { badge.style.display='inline'; setTimeout(()=>badge.style.display='none', 1800); }
+  } catch(e) {}
+}
+
+function updateNewParam(sliderId, valId, fmt) {
+  const v = parseInt(document.getElementById(sliderId).value);
+  document.getElementById(valId).textContent = fmt ? fmt(v) : String(v);
+  saveParams();
+}
+
+function resetParams() {
+  Object.entries(PARAM_DEFAULTS).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if (el) { el.value = v; document.getElementById(PARAM_VAL_IDS[k]).textContent = PARAM_DISPLAY[k](v); }
+  });
+  saveParams();
+}
+
+// legacy stub — no longer used but keep for safety
+function updateParam(id) {}
+
+// ──────────────────────────────────────────────
+// ANALYSIS CANVAS SETUP
+// ──────────────────────────────────────────────
+function initAnalysisCanvas() {
+  const canvas = document.getElementById('analysisCanvas');
+  if(!state.dapiCanvas) return;
+  canvas.width = state.dapiCanvas.width;
+  canvas.height = state.dapiCanvas.height;
+  redrawView();
+}
+
+function setChannel(ch) {
+  state.viewChannel = ch;
+  ['dapi','green','both','overlay'].forEach(c => {
+    const btn = document.getElementById('ch'+c.charAt(0).toUpperCase()+c.slice(1));
+    if(btn) btn.className = 'ch-btn';
+  });
+  const id = 'ch'+ch.charAt(0).toUpperCase()+ch.slice(1);
+  const btn = document.getElementById(id);
+  if(btn) btn.className = 'ch-btn '+ch+'-active';
+  redrawView();
+}
+
+function redrawView() {
+  const canvas = document.getElementById('analysisCanvas');
+  if(!canvas || !state.dapiCanvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const dOp = (document.getElementById('dapiOpacity')?.value||100) / 100;
+  const gOp = (document.getElementById('greenOpacity')?.value||60) / 100;
+  const oOp = (document.getElementById('overlayOpacity')?.value||80) / 100;
+
+  // Show/hide sliders based on active channel
+  const ch = state.viewChannel;
+  const showDapi   = ch === 'dapi' || ch === 'both' || ch === 'overlay';
+  const showGreen  = ch === 'green' || ch === 'both';
+  const showDetect = ch === 'overlay';
+  const el = (id) => document.getElementById(id);
+  if(el('opDapiRow'))   el('opDapiRow').style.display   = showDapi   ? 'block' : 'none';
+  if(el('opGreenRow'))  el('opGreenRow').style.display  = showGreen  ? 'block' : 'none';
+  if(el('opDetectRow')) el('opDetectRow').style.display = showDetect ? 'block' : 'none';
+  if(el('opCardTitle')) {
+    const titles = { dapi:'DAPI Opacity', green:'Green Opacity', both:'Channel Mix', overlay:'Detection Opacity' };
+    el('opCardTitle').textContent = titles[ch] || 'Layer Opacity';
+  }
+
+  // Draw base image(s)
+  if(state.viewChannel === 'dapi' || state.viewChannel === 'overlay') {
+    ctx.globalAlpha = dOp;
+    ctx.drawImage(state.dapiCanvas, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+  if(state.viewChannel === 'green') {
+    ctx.globalAlpha = gOp;
+    if(state.greenCanvas) ctx.drawImage(state.greenCanvas, 0, 0);
+    ctx.globalAlpha = 1;
+  }
+  if(state.viewChannel === 'both') {
+    ctx.globalAlpha = dOp;
+    ctx.drawImage(state.dapiCanvas, 0, 0);
+    if(state.greenCanvas) {
+      ctx.globalAlpha = gOp;
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(state.greenCanvas, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Draw nuclei overlay on top of image in same canvas
+  if(state.viewChannel === 'overlay' && state.autoNuclei.length) {
+    ctx.globalAlpha = oOp;
+    drawNucleiOverlay(ctx);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ──────────────────────────────────────────────
+// NUCLEUS DETECTION — circle_analyzer algorithm
+// (adaptive threshold + morphOpen + connected components + blob separation)
+// ──────────────────────────────────────────────
+
+function runAnalysis() {
+  if(!state.dapiCanvas) return;
+  const fill = document.getElementById('analysisProgFill');
+  const bar  = document.getElementById('analysisProg');
+  bar.style.display='block'; fill.style.width='0%';
+
+  setTimeout(() => {
+    fill.style.width = '15%';
+    setTimeout(() => { detectNucleiCircleAnalyzer(); }, 60);
+  }, 30);
+}
+
+function setAnalysisProgress(pct) {
+  const fill = document.getElementById('analysisProgFill');
+  if(fill) fill.style.width = pct+'%';
+  if(pct >= 100) setTimeout(()=>{ const b=document.getElementById('analysisProg'); if(b) b.style.display='none'; }, 700);
+}
+
+function detectNucleiCircleAnalyzer() {
+  const src = state.dapiCanvas;
+  const W = src.width, H = src.height;
+  const N = W * H;
+  const ctx = src.getContext('2d');
+  const imgData = ctx.getImageData(0,0,W,H);
+  const data = imgData.data;
+
+  // Grayscale
+  const gray = new Uint8Array(N);
+  for(let i=0;i<N;i++) gray[i] = (77*data[i*4] + 150*data[i*4+1] + 29*data[i*4+2]) >> 8;
+  setAnalysisProgress(15);
+
   setTimeout(()=>{
-    const pc=document.getElementById('pc');
-    pc.width=iW; pc.height=iH;
-    const ctx=pc.getContext('2d');
-    const N=iW*iH;
-
-    ctx.drawImage(imgD,0,0);
-    const dd=ctx.getImageData(0,0,iW,iH).data;
-    const gD=new Uint8Array(N);
-    for(let i=0;i<N;i++) gD[i]=(77*dd[i*4]+150*dd[i*4+1]+29*dd[i*4+2])>>8;
-    grayD=gD; prog(15);
-
-    ctx.drawImage(imgG,0,0);
-    const gd=ctx.getImageData(0,0,iW,iH).data;
-    const gG=new Uint8Array(N);
-    for(let i=0;i<N;i++) gG[i]=(77*gd[i*4]+150*gd[i*4+1]+29*gd[i*4+2])>>8;
-    grayG=gG; prog(25);
+    const blurred = ca_boxBlur(gray, W, H, 2);
+    setAnalysisProgress(30);
 
     setTimeout(()=>{
-      const blur=boxBlur(gD,iW,iH,2); prog(35);
+      const thresh = parseInt(document.getElementById('threshSlider').value);
+      const blockR = Math.max(15, Math.round(Math.min(W,H)/20));
+      const binary = ca_adaptiveThreshold(blurred, W, H, blockR, -thresh);
+      setAnalysisProgress(50);
+
       setTimeout(()=>{
-        const thr=parseInt(document.getElementById('sT').value);
-        const bR=Math.max(15,Math.round(Math.min(iW,iH)/20));
-        const bin=adaptThresh(blur,iW,iH,bR,-thr);
-        const opn=morphOpen(bin,iW,iH,2); prog(50);
+        const opened = ca_morphOpen(binary, W, H, 2);
+        const labels = ca_connectedComponents(opened, W, H);
+        setAnalysisProgress(68);
+
         setTimeout(()=>{
-          const labs=ccl(opn,iW,iH); prog(65);
-          setTimeout(()=>{
-            const minR=parseInt(document.getElementById('sMn').value);
-            const maxR=parseInt(document.getElementById('sMx').value);
-            const minC=parseFloat(document.getElementById('sC').value)/100;
-            const mult=parseInt(document.getElementById('sM').value);
-            const gThr=parseInt(document.getElementById('sG').value);
+          const minR = parseInt(document.getElementById('minSzSlider').value);
+          const maxR = parseInt(document.getElementById('maxSzSlider').value);
+          const minCirc = parseFloat(document.getElementById('circSlider').value)/100;
 
-            const comps=buildComps(labs,gD,iW,iH);
-            let cands=comps.filter(c=>{const r=Math.sqrt(c.area/Math.PI);return r>=minR&&r<=maxR&&c.circ>=minC;});
+          const comps = ca_buildComponents(labels, gray, W, H);
+          setAnalysisProgress(80);
 
-            // median radius
-            let avgR=0;
-            if(cands.length){
-              const rs=cands.map(c=>Math.sqrt(c.area/Math.PI)).sort((a,b)=>a-b);
-              const q1=Math.floor(rs.length*.25),q3=Math.floor(rs.length*.75);
-              const sl=rs.slice(q1,q3+1);
-              avgR=sl.reduce((a,b)=>a+b,0)/Math.max(1,sl.length);
-            }
-            cands=splitTouching(cands,avgR); prog(78);
+          let candidates = comps.filter(c => {
+            const r = Math.sqrt(c.area/Math.PI);
+            return r >= minR/2 && r <= maxR/2 && c.circularity >= minCirc;
+          });
 
-            // build circles with FIXED measurement radius
-            const exp=cands.map(c=>({...c,r:Math.sqrt(c.area/Math.PI),rE:mult}));
+          // Compute avgRadius for blob separation
+          if(candidates.length > 0) {
+            const radii = candidates.map(c => Math.sqrt(c.area/Math.PI));
+            radii.sort((a,b)=>a-b);
+            const q1=Math.floor(radii.length*0.25), q3=Math.floor(radii.length*0.75);
+            const slice = radii.slice(q1, q3+1);
+            state.avgNucRadius = slice.reduce((a,b)=>a+b,0) / Math.max(1,slice.length);
+          }
 
-            // detect overlapping expanded zones
-            const n=exp.length;
-            const ov=new Uint8Array(n);
-            for(let i=0;i<n;i++){
-              if(ov[i]) continue;
-              for(let j=i+1;j<n;j++){
-                const dx=exp[i].cx-exp[j].cx,dy=exp[i].cy-exp[j].cy;
-                if(Math.sqrt(dx*dx+dy*dy)<exp[i].rE+exp[j].rE){ov[i]=1;ov[j]=1;}
-              }
-            }
-            prog(88);
+          candidates = ca_separateTouchingBlobs(candidates, state.avgNucRadius||0);
+          setAnalysisProgress(92);
 
-            // measure green channel + vesicle analysis
-            circles=exp.map((c,i)=>{
-              const excl=!!ov[i];
-              let gMean=0,gSum=0,gMax=0,gPix=0,gArea=0,gStd=0;
-              let vesicleScore=0, vesicleCount=0, pattern='—';
-              const pixels=[];
-              if(!excl){
-                const x0=Math.max(0,Math.round(c.cx-c.rE)),x1=Math.min(iW-1,Math.round(c.cx+c.rE));
-                const y0=Math.max(0,Math.round(c.cy-c.rE)),y1=Math.min(iH-1,Math.round(c.cy+c.rE));
-                const r2=c.rE*c.rE;
-                for(let py=y0;py<=y1;py++){
-                  for(let px=x0;px<=x1;px++){
-                    const dx=px-c.cx,dy=py-c.cy;
-                    if(dx*dx+dy*dy<=r2){
-                      const g=grayG[py*iW+px];
-                      pixels.push({v:g,x:px,y:py});
-                      gSum+=g; gArea++;
-                      if(g>gMax) gMax=g;
-                      if(g>gThr) gPix++;
-                    }
-                  }
-                }
-                gMean=gArea>0?gSum/gArea:0;
-                // std dev
-                let ss=0; for(const p of pixels) ss+=(p.v-gMean)**2;
-                gStd=gArea>1?Math.sqrt(ss/gArea):0;
-                // CV = std/mean — high CV → vesicular
-                const cv=gMean>0?gStd/gMean:0;
-                // Local peak detection: count pixels > mean+1.5*std (hotspots)
-                const peakThr=gMean+1.5*gStd;
-                const peakMask=new Uint8Array(iW*iH);
-                for(const p of pixels) if(p.v>=peakThr) peakMask[p.y*iW+p.x]=1;
-                // simple connected component count on peak mask within circle
-                const visited=new Uint8Array(iW*iH);
-                let peaks=0;
-                for(const p of pixels){
-                  const idx=p.y*iW+p.x;
-                  if(!peakMask[idx]||visited[idx]) continue;
-                  peaks++;
-                  const q=[idx]; visited[idx]=1;
-                  while(q.length){
-                    const ci=q.pop(),cx2=ci%iW,cy2=(ci/iW)|0;
-                    for(const ni of[ci-1,ci+1,ci-iW,ci+iW]){
-                      if(ni>=0&&ni<iW*iH&&!visited[ni]&&peakMask[ni]){
-                        const nx=ni%iW,ny=(ni/iW)|0;
-                        const ddx=nx-c.cx,ddy=ny-c.cy;
-                        if(ddx*ddx+ddy*ddy<=r2){visited[ni]=1;q.push(ni);}
-                      }
-                    }
-                  }
-                }
-                vesicleCount=peaks;
-                vesicleScore=cv;
-                // Classify: CV<0.3 → diffuse, 0.3-0.6 → mixed, >0.6 → vesicular
-                pattern=cv<0.30?'מפוזר':cv<0.60?'מעורב':'וסיקולרי';
-              }
-              return{id:i+1,cx:c.cx,cy:c.cy,r:c.r,rE:c.rE,area:c.area,circ:c.circ,
-                     dapiMean:c.meanI,excl,gMean,gSum,gMax,gPct:gArea>0?gPix/gArea*100:0,
-                     gArea,gStd,cv:vesicleScore,vesicleCount,pattern};
-            });
+          state.autoNuclei = candidates.map((c,i)=>({
+            id: i+1,
+            cx: c.cx, cy: c.cy,
+            r: Math.sqrt(c.area/Math.PI),
+            area: c.area,
+            circularity: c.circularity,
+            intensity: c.meanIntensity,
+            maxIntensity: c.maxIntensity
+          }));
 
-            prog(96);
-            redraw(); drawOverlay(); renderStats();
-            document.getElementById('btnA').disabled=false;
-            prog(100);
-          },20);
-        },20);
-      },20);
-    },20);
-  },20);
+          updateStats();
+          setChannel('overlay');
+          setAnalysisProgress(100);
+        }, 20);
+      }, 20);
+    }, 20);
+  }, 20);
 }
 
-// ── IMAGE PROCESSING ──
-function boxBlur(src,W,H,r){
-  const N=W*H; let a=new Uint8Array(src),b=new Uint8Array(N);
-  for(let p=0;p<2;p++){
-    for(let y=0;y<H;y++){let s=0,row=y*W;for(let x=0;x<W;x++){if(x===0){s=0;for(let k=0;k<=r&&k<W;k++)s+=a[row+k];}else{if(x+r<W)s+=a[row+x+r];if(x-r-1>=0)s-=a[row+x-r-1];}const c=Math.min(x+r,W-1)-Math.max(0,x-r)+1;b[row+x]=(s/c+.5)|0;}}
-    for(let x=0;x<W;x++){let s=0;for(let y=0;y<H;y++){if(y===0){s=0;for(let k=0;k<=r&&k<H;k++)s+=b[k*W+x];}else{if(y+r<H)s+=b[(y+r)*W+x];if(y-r-1>=0)s-=b[(y-r-1)*W+x];}const c=Math.min(y+r,H-1)-Math.max(0,y-r)+1;a[y*W+x]=(s/c+.5)|0;}}
+// ── IMAGE PROCESSING FUNCTIONS (from circle_analyzer3) ─────────────────────
+
+function ca_boxBlur(src, W, H, radius) {
+  const N = W*H;
+  let a = new Uint8Array(src), b = new Uint8Array(N);
+  for(let pass=0;pass<2;pass++){
+    for(let y=0;y<H;y++){
+      let sum=0, row=y*W;
+      for(let x=0;x<W;x++){
+        if(x+radius<W) sum+=a[row+x+radius];
+        if(x-radius-1>=0) sum-=a[row+x-radius-1];
+        else if(x===0){sum=0;for(let k=0;k<=radius&&k<W;k++) sum+=a[row+k];}
+        const cnt=Math.min(x+radius,W-1)-Math.max(0,x-radius)+1;
+        b[row+x]=(sum/cnt+0.5)|0;
+      }
+    }
+    for(let x=0;x<W;x++){
+      let sum=0;
+      for(let y=0;y<H;y++){
+        if(y+radius<H) sum+=b[(y+radius)*W+x];
+        if(y-radius-1>=0) sum-=b[(y-radius-1)*W+x];
+        else if(y===0){sum=0;for(let k=0;k<=radius&&k<H;k++) sum+=b[k*W+x];}
+        const cnt=Math.min(y+radius,H-1)-Math.max(0,y-radius)+1;
+        a[y*W+x]=(sum/cnt+0.5)|0;
+      }
+    }
   }
   return a;
 }
 
-function adaptThresh(gray,W,H,bR,C){
-  const integ=new Float64Array((W+1)*(H+1));
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++) integ[(y+1)*(W+1)+(x+1)]=gray[y*W+x]+integ[y*(W+1)+(x+1)]+integ[(y+1)*(W+1)+x]-integ[y*(W+1)+x];
-  const bin=new Uint8Array(W*H);
-  for(let y=0;y<H;y++){for(let x=0;x<W;x++){
-    const x1=Math.max(0,x-bR),y1=Math.max(0,y-bR),x2=Math.min(W-1,x+bR),y2=Math.min(H-1,y+bR);
-    const cnt=(x2-x1+1)*(y2-y1+1);
-    const s=integ[(y2+1)*(W+1)+(x2+1)]-integ[y1*(W+1)+(x2+1)]-integ[(y2+1)*(W+1)+x1]+integ[y1*(W+1)+x1];
-    bin[y*W+x]=gray[y*W+x]>s/cnt+C?1:0;
-  }}
-  return bin;
+function ca_adaptiveThreshold(gray, W, H, blockR, C) {
+  const integ = new Float64Array((W+1)*(H+1));
+  for(let y=0;y<H;y++)
+    for(let x=0;x<W;x++)
+      integ[(y+1)*(W+1)+(x+1)] = gray[y*W+x]
+        + integ[y*(W+1)+(x+1)]
+        + integ[(y+1)*(W+1)+x]
+        - integ[y*(W+1)+x];
+  const binary = new Uint8Array(W*H);
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const x1=Math.max(0,x-blockR), y1=Math.max(0,y-blockR);
+      const x2=Math.min(W-1,x+blockR), y2=Math.min(H-1,y+blockR);
+      const count=(x2-x1+1)*(y2-y1+1);
+      const sum=integ[(y2+1)*(W+1)+(x2+1)]-integ[y1*(W+1)+(x2+1)]-integ[(y2+1)*(W+1)+x1]+integ[y1*(W+1)+x1];
+      binary[y*W+x] = gray[y*W+x] > sum/count + C ? 1 : 0;
+    }
+  }
+  return binary;
 }
 
-function morphOpen(bin,W,H,r){
-  const N=W*H,tmp=new Uint8Array(N),out=new Uint8Array(N);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    if(!bin[y*W+x]){continue;}
-    let ok=1;
-    lp:for(let dy=-r;dy<=r&&ok;dy++)for(let dx=-r;dx<=r&&ok;dx++){const ny=y+dy,nx=x+dx;if(ny>=0&&ny<H&&nx>=0&&nx<W&&!bin[ny*W+nx])ok=0;}
-    tmp[y*W+x]=ok;
+function ca_morphOpen(binary, W, H, r) {
+  const N=W*H, tmp=new Uint8Array(N), out=new Uint8Array(N);
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      if(!binary[y*W+x]){tmp[y*W+x]=0;continue;}
+      let ok=1;
+      outer: for(let dy=-r;dy<=r&&ok;dy++)
+        for(let dx=-r;dx<=r&&ok;dx++){
+          const ny=y+dy,nx=x+dx;
+          if(ny>=0&&ny<H&&nx>=0&&nx<W&&!binary[ny*W+nx]) ok=0;
+        }
+      tmp[y*W+x]=ok;
+    }
   }
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    let f=0;
-    lp2:for(let dy=-r;dy<=r&&!f;dy++)for(let dx=-r;dx<=r&&!f;dx++){const ny=y+dy,nx=x+dx;if(ny>=0&&ny<H&&nx>=0&&nx<W&&tmp[ny*W+nx])f=1;}
-    out[y*W+x]=f;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      let found=0;
+      outer2: for(let dy=-r;dy<=r&&!found;dy++)
+        for(let dx=-r;dx<=r&&!found;dx++){
+          const ny=y+dy,nx=x+dx;
+          if(ny>=0&&ny<H&&nx>=0&&nx<W&&tmp[ny*W+nx]) found=1;
+        }
+      out[y*W+x]=found;
+    }
   }
   return out;
 }
 
-function ccl(bin,W,H){
-  const labs=new Int32Array(W*H),q=new Int32Array(W*H);let nxt=1;
-  for(let sy=0;sy<H;sy++)for(let sx=0;sx<W;sx++){
-    const si=sy*W+sx;if(!bin[si]||labs[si])continue;
-    labs[si]=nxt;let hd=0,tl=0;q[tl++]=si;
-    while(hd<tl){const ci=q[hd++],cx=ci%W,cy=(ci/W)|0;
-      if(cy>0&&bin[ci-W]&&!labs[ci-W]){labs[ci-W]=nxt;q[tl++]=ci-W;}
-      if(cy<H-1&&bin[ci+W]&&!labs[ci+W]){labs[ci+W]=nxt;q[tl++]=ci+W;}
-      if(cx>0&&bin[ci-1]&&!labs[ci-1]){labs[ci-1]=nxt;q[tl++]=ci-1;}
-      if(cx<W-1&&bin[ci+1]&&!labs[ci+1]){labs[ci+1]=nxt;q[tl++]=ci+1;}
+function ca_connectedComponents(binary, W, H) {
+  const labels=new Int32Array(W*H);
+  let nextLabel=1;
+  const queue=new Int32Array(W*H);
+  for(let sy=0;sy<H;sy++){
+    for(let sx=0;sx<W;sx++){
+      const si=sy*W+sx;
+      if(!binary[si]||labels[si]) continue;
+      labels[si]=nextLabel;
+      let head=0,tail=0;
+      queue[tail++]=si;
+      while(head<tail){
+        const ci=queue[head++];
+        const cx=ci%W, cy=(ci/W)|0;
+        if(cy>0   &&binary[ci-W]&&!labels[ci-W]){labels[ci-W]=nextLabel;queue[tail++]=ci-W;}
+        if(cy<H-1 &&binary[ci+W]&&!labels[ci+W]){labels[ci+W]=nextLabel;queue[tail++]=ci+W;}
+        if(cx>0   &&binary[ci-1]&&!labels[ci-1]){labels[ci-1]=nextLabel;queue[tail++]=ci-1;}
+        if(cx<W-1 &&binary[ci+1]&&!labels[ci+1]){labels[ci+1]=nextLabel;queue[tail++]=ci+1;}
+      }
+      nextLabel++;
     }
-    nxt++;
   }
-  return labs;
+  return labels;
 }
 
-function buildComps(labs,gray,W,H){
+function ca_buildComponents(labels, gray, W, H) {
   const map=new Map();
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const l=labs[y*W+x];if(!l)continue;
-    if(!map.has(l))map.set(l,{sX:0,sY:0,area:0,peri:0,sG:0,mxG:0});
-    const c=map.get(l),g=gray[y*W+x];
-    c.sX+=x;c.sY+=y;c.area++;c.sG+=g;if(g>c.mxG)c.mxG=g;
-    const edge=!labs[y*W+x-1]||!labs[y*W+x+1]||!labs[(y-1)*W+x]||!labs[(y+1)*W+x]||x===0||x===W-1||y===0||y===H-1;
-    if(edge)c.peri++;
-  }
-  const res=[];
-  for(const[,c]of map){
-    if(c.area<5)continue;
-    const circ=c.peri>0?(4*Math.PI*c.area)/(c.peri*c.peri):0;
-    res.push({cx:c.sX/c.area,cy:c.sY/c.area,area:c.area,peri:c.peri,circ:Math.min(1,circ),meanI:c.sG/c.area,maxI:c.mxG});
-  }
-  return res;
-}
-
-function splitTouching(cands,avgR){
-  if(avgR<3)return cands;
-  const ea=Math.PI*avgR*avgR,res=[];
-  for(const c of cands){
-    const ratio=c.area/ea;
-    if(ratio<1.6){res.push(c);continue;}
-    const N=Math.min(20,Math.round(ratio));
-    if(N<2){res.push(c);continue;}
-    const step=(2*Math.PI)/N;
-    for(let k=0;k<N;k++) res.push({...c,cx:c.cx+Math.cos(k*step)*avgR*.45,cy:c.cy+Math.sin(k*step)*avgR*.45,area:c.area/N,peri:c.peri/N});
-  }
-  return res;
-}
-
-// ── OVERLAY ──
-function drawOverlay(){
-  const oc=document.getElementById('oCvs'),ctx=oc.getContext('2d');
-  ctx.clearRect(0,0,oc.width,oc.height);
-  const s=dscale;
-  circles.forEach((c,i)=>{
-    const x=c.cx*s,y=c.cy*s,r=c.r*s,rE=c.rE*s,sel=i===selIdx;
-    if(c.excl){
-      ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);
-      ctx.setLineDash([4,3]);ctx.strokeStyle='rgba(239,68,68,.55)';ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);
-    } else {
-      // nucleus
-      ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);
-      ctx.strokeStyle=sel?'#00d4ff':'rgba(0,212,255,.75)';ctx.lineWidth=sel?2.5:1.5;ctx.stroke();
-      // expanded zone
-      ctx.beginPath();ctx.arc(x,y,rE,0,2*Math.PI);
-      const alpha=Math.min(.22,c.gMean/255*.55);
-      ctx.fillStyle=`rgba(16,185,129,${alpha})`;ctx.fill();
-      ctx.setLineDash([5,4]);
-      ctx.strokeStyle=sel?'#10b981':'rgba(16,185,129,.4)';ctx.lineWidth=sel?2:1;ctx.stroke();ctx.setLineDash([]);
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const lbl=labels[y*W+x];
+      if(!lbl) continue;
+      if(!map.has(lbl)) map.set(lbl,{sumX:0,sumY:0,area:0,perimPx:0,sumG:0,maxG:0,minG:255});
+      const c=map.get(lbl);
+      const g=gray[y*W+x];
+      c.sumX+=x; c.sumY+=y; c.area++;
+      c.sumG+=g;
+      if(g>c.maxG) c.maxG=g;
+      if(g<c.minG) c.minG=g;
+      const isEdge=!labels[y*W+x-1]||!labels[y*W+x+1]||!labels[(y-1)*W+x]||!labels[(y+1)*W+x]
+                 ||x===0||x===W-1||y===0||y===H-1;
+      if(isEdge) c.perimPx++;
     }
-    ctx.fillStyle=c.excl?'rgba(239,68,68,.65)':(sel?'#00d4ff':'rgba(255,255,255,.6)');
-    ctx.font=`${Math.max(7,Math.min(10,r*.6))}px IBM Plex Mono,monospace`;
-    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(c.id,x,y);
+  }
+  const result=[];
+  for(const [,c] of map){
+    if(c.area<5) continue;
+    const circ=c.perimPx>0?(4*Math.PI*c.area)/(c.perimPx*c.perimPx):0;
+    result.push({
+      cx:c.sumX/c.area, cy:c.sumY/c.area,
+      area:c.area, perimeter:c.perimPx,
+      circularity:Math.min(1,circ),
+      meanIntensity:c.sumG/c.area,
+      maxIntensity:c.maxG, minIntensity:c.minG
+    });
+  }
+  return result;
+}
+
+function ca_separateTouchingBlobs(candidates, avgR) {
+  if(avgR<3) return candidates;
+  const expectedArea = Math.PI*avgR*avgR;
+  const result=[];
+  for(const c of candidates){
+    const ratio=c.area/expectedArea;
+    if(ratio<1.6){result.push(c);continue;}
+    const N2=Math.min(20,Math.round(ratio));
+    if(N2<2){result.push(c);continue;}
+    const step=(2*Math.PI)/N2;
+    for(let k=0;k<N2;k++){
+      result.push({
+        cx:c.cx+Math.cos(k*step)*avgR*0.45,
+        cy:c.cy+Math.sin(k*step)*avgR*0.45,
+        area:c.area/N2, perimeter:c.perimeter/N2,
+        circularity:c.circularity,
+        meanIntensity:c.meanIntensity,
+        maxIntensity:c.maxIntensity,
+        minIntensity:c.minIntensity
+      });
+    }
+  }
+  return result;
+}
+
+function updateStats() {
+  const n = state.autoNuclei.length;
+  const W = state.dapiCanvas?.width||1, H = state.dapiCanvas?.height||1;
+  document.getElementById('autoCount').textContent = n;
+  if(n) {
+    const avgA = Math.round(state.autoNuclei.reduce((s,c)=>s+c.area,0)/n);
+    const avgI = Math.round(state.autoNuclei.reduce((s,c)=>s+c.intensity,0)/n);
+    const cov  = ((state.autoNuclei.reduce((s,c)=>s+c.area,0)/(W*H))*100).toFixed(1);
+    document.getElementById('avgArea').textContent = avgA;
+    document.getElementById('avgIntensity').textContent = avgI;
+    document.getElementById('coveragePct').textContent = cov+'%';
+  }
+}
+
+// ──────────────────────────────────────────────
+// MANUAL CANVAS
+// ──────────────────────────────────────────────
+function initManualCanvas() {
+  const canvas = document.getElementById('manualCanvas');
+  if(!state.dapiCanvas) return;
+  canvas.width = state.dapiCanvas.width;
+  canvas.height = state.dapiCanvas.height;
+  redrawManualFull();
+}
+
+function setManChannel(ch) {
+  state.manViewChannel = ch;
+  ['dapi','green','both'].forEach(c => {
+    const btn = document.getElementById('manCh'+c.charAt(0).toUpperCase()+c.slice(1));
+    if(btn) btn.className = 'ch-btn';
+  });
+  const btn = document.getElementById('manCh'+ch.charAt(0).toUpperCase()+ch.slice(1));
+  if(btn) btn.className = 'ch-btn '+ch+'-active';
+  const ctrl = document.getElementById('manOverlayControls');
+  if(ctrl) ctrl.style.display = ch === 'both' ? 'block' : 'none';
+  redrawManualFull();
+}
+
+// Draw image + markers together on single canvas
+function redrawManualFull() {
+  const canvas = document.getElementById('manualCanvas');
+  if(!canvas || !state.dapiCanvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Image layer
+  if(state.manViewChannel === 'dapi') {
+    ctx.drawImage(state.dapiCanvas,0,0);
+  } else if(state.manViewChannel === 'green') {
+    if(state.greenCanvas) ctx.drawImage(state.greenCanvas,0,0);
+  } else {
+    const dOp = (document.getElementById('manDapiOpacity')?.value ?? 100) / 100;
+    const gOp = (document.getElementById('manGreenOpacity')?.value ?? 60) / 100;
+    ctx.globalAlpha = dOp;
+    ctx.drawImage(state.dapiCanvas,0,0);
+    if(state.greenCanvas){
+      ctx.globalAlpha = gOp;
+      ctx.globalCompositeOperation='screen';
+      ctx.drawImage(state.greenCanvas,0,0);
+      ctx.globalCompositeOperation='source-over';
+      ctx.globalAlpha=1;
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // Auto-nuclei layer (optional)
+  if(state.showAutoOnManual && state.autoNuclei.length) {
+    ctx.globalAlpha = 0.55;
+    state.autoNuclei.forEach(n => {
+      const r = Math.max(n.r, 6);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(n.cx, n.cy, r, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // Markers layer — drawn directly on same canvas
+  redrawManualMarkers(ctx);
+}
+
+function toggleAutoOnManual() {
+  const btn = document.getElementById('manChAuto');
+  const hasImported = state.manNuclei.some(p => p.fromAuto);
+
+  if(!state.autoNuclei.length) {
+    btn.title = 'No automatic count — go back to step 2 and analyze first';
+    btn.style.opacity = '0.4';
+    return;
+  }
+
+  if(!hasImported) {
+    // ── IMPORT: copy auto nuclei into manual list ──
+    const imported = state.autoNuclei.map(n => ({ x: n.cx, y: n.cy, fromAuto: true }));
+    state.manNuclei = [...imported, ...state.manNuclei.filter(p => !p.fromAuto)];
+    btn.className = 'ch-btn dapi-active';
+    btn.textContent = 'Imported ✓';
+  } else {
+    // ── REMOVE: clear imported ones ──
+    if(!confirm('Remove all automatically imported nuclei from the manual list?')) return;
+    state.manNuclei = state.manNuclei.filter(p => !p.fromAuto);
+    btn.className = 'ch-btn';
+    btn.textContent = 'Auto 🔵';
+  }
+  updateManualCounts();
+  redrawManualFull();
+}
+
+// ──────────────────────────────────────────────
+// DRAW HELPERS
+// ──────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+function drawNucleiOverlay(ctx) {
+  state.autoNuclei.forEach((n, i) => {
+    const r = Math.max(n.r, 6);
+    // Outer glow halo
+    ctx.strokeStyle = 'rgba(59,130,246,0.35)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(n.cx, n.cy, r + 5, 0, Math.PI*2);
+    ctx.stroke();
+    // Main circle (use radius from detection, not ellipse)
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 2.5;
+    ctx.fillStyle = 'rgba(59,130,246,0.18)';
+    ctx.beginPath();
+    ctx.arc(n.cx, n.cy, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    // Number badge
+    const label = String(i+1);
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width + 8;
+    ctx.fillStyle = '#1d4ed8';
+    roundRect(ctx, n.cx - tw/2, n.cy - 7, tw, 14, 3);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, n.cx, n.cy);
   });
 }
 
-// ── TOOLTIP ──
-document.getElementById('oCvs').addEventListener('mousemove',e=>{
-  if(!circles.length)return;
-  const rect=e.target.getBoundingClientRect();
-  const mx=(e.clientX-rect.left)/dscale,my=(e.clientY-rect.top)/dscale;
-  const tip=document.getElementById('tip');
-  let hit=-1;
-  for(let i=0;i<circles.length;i++){const c=circles[i],d=Math.sqrt((mx-c.cx)**2+(my-c.cy)**2);if(d<=c.rE+3){hit=i;break;}}
-  if(hit>=0){
-    const c=circles[hit],rp=document.getElementById('rp').getBoundingClientRect();
-    tip.style.display='block';
-    tip.style.left=(e.clientX-rp.left+14)+'px';
-    tip.style.top=(e.clientY-rp.top-10)+'px';
-    tip.innerHTML=`<div class="ti ${c.excl?'ex':'ok'}">#${c.id}${c.excl?' [מוחרג]':''}</div>
-      <div class="tr">רדיוס <span>${c.r.toFixed(1)} px</span></div>
-      <div class="tr">DAPI⌀ <span>${c.dapiMean.toFixed(0)}</span></div>
-      ${!c.excl?`<div class="tr">ירוק⌀ <span class="g">${c.gMean.toFixed(1)}</span></div>
-      <div class="tr">∫density <span class="g">${c.gSum.toFixed(0)}</span></div>
-      <div class="tr">%ירוק>סף <span class="g">${c.gPct.toFixed(1)}%</span></div>
-      <div class="tr">CV (פיזור) <span class="g">${c.cv.toFixed(2)}</span></div>
-      <div class="tr">מוקדים <span class="g">${c.vesicleCount}</span></div>
-      <div class="tr">דפוס <span class="g">${c.pattern}</span></div>`
-      :'<div class="tr" style="color:var(--red)">חפיפה — מוחרג</div>'}`;
-    if(hit!==selIdx){selIdx=hit;drawOverlay();hlRow(hit);}
-  } else {
-    tip.style.display='none';
-    if(selIdx!==-1){selIdx=-1;drawOverlay();hlRow(-1);}
+function redrawManualMarkers(ctx) {
+  if(!ctx) {
+    // Called standalone — redraw everything
+    redrawManualFull(); return;
   }
+  // ctx is passed from redrawManualFull, draw markers on it
+
+  state.manNuclei.forEach((p,i)=>{
+    const isAuto = p.fromAuto;
+    // Outer glow ring
+    ctx.strokeStyle = isAuto ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.3)';
+    ctx.lineWidth = isAuto ? 3 : 6;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,18,0,Math.PI*2);
+    ctx.stroke();
+    // Main circle — dashed for auto-imported
+    ctx.strokeStyle='#60a5fa';
+    ctx.fillStyle = isAuto ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.22)';
+    ctx.lineWidth = isAuto ? 1.5 : 3;
+    if(isAuto) ctx.setLineDash([5,3]);
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,14,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    // Crosshair ticks (only for manually added)
+    if(!isAuto) {
+      ctx.strokeStyle='rgba(96,165,250,0.8)';
+      ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.moveTo(p.x-24,p.y); ctx.lineTo(p.x-16,p.y);
+      ctx.moveTo(p.x+16,p.y); ctx.lineTo(p.x+24,p.y);
+      ctx.moveTo(p.x,p.y-24); ctx.lineTo(p.x,p.y-16);
+      ctx.moveTo(p.x,p.y+16); ctx.lineTo(p.x,p.y+24);
+      ctx.stroke();
+    }
+    // Number badge
+    const label1 = String(i+1);
+    ctx.font='bold 12px monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    const tw1 = ctx.measureText(label1).width + 10;
+    ctx.fillStyle = isAuto ? '#1e3a6e' : '#1d4ed8';
+    roundRect(ctx, p.x-tw1/2, p.y-8, tw1, 16, 4);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.fillText(label1, p.x, p.y);
+  });
+
+  state.manDiff.forEach((p,i)=>{
+    // Outer glow ring
+    ctx.strokeStyle='rgba(34,211,160,0.3)';
+    ctx.lineWidth=6;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,20,0,Math.PI*2);
+    ctx.stroke();
+    // Main circle
+    ctx.strokeStyle='#22d3a0';
+    ctx.fillStyle='rgba(34,211,160,0.2)';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,15,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    // Bold cross
+    ctx.strokeStyle='#22d3a0';
+    ctx.lineWidth=3;
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(p.x-9,p.y); ctx.lineTo(p.x+9,p.y);
+    ctx.moveTo(p.x,p.y-9); ctx.lineTo(p.x,p.y+9);
+    ctx.stroke();
+    ctx.lineCap='butt';
+    // GFP+ badge below circle
+    ctx.font='bold 11px monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    const tw2 = ctx.measureText('GFP+').width + 10;
+    ctx.fillStyle='#065f46';
+    roundRect(ctx, p.x-tw2/2, p.y+19, tw2, 15, 4);
+    ctx.fill();
+    ctx.strokeStyle='#22d3a0';
+    ctx.lineWidth=1;
+    roundRect(ctx, p.x-tw2/2, p.y+19, tw2, 15, 4);
+    ctx.stroke();
+    ctx.fillStyle='#22d3a0';
+    ctx.fillText('GFP+', p.x, p.y+26);
+  });
+}
+
+function setClickMode(mode) {
+  state.clickMode = mode;
+  document.getElementById('modeNucleus').className = 'click-mode-toggle' + (mode==='nucleus' ? ' active-nuc' : '');
+  document.getElementById('modeDiff').className = 'click-mode-toggle' + (mode==='diff' ? ' active-diff' : '');
+}
+
+function handleManualClick(e) {
+  const canvas = document.getElementById('manualCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  if(state.clickMode === 'nucleus') {
+    state.manNuclei.push({x,y});
+  } else {
+    state.manDiff.push({x,y});
+  }
+  updateManualCounts();
+  redrawManualFull();
+}
+
+function handleManualRightClick(e) {
+  e.preventDefault();
+  const canvas = document.getElementById('manualCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  const arr = state.clickMode === 'nucleus' ? state.manNuclei : state.manDiff;
+  const idx = arr.findIndex(p => Math.hypot(p.x-x,p.y-y) < 22);
+  if(idx >= 0) {
+    arr.splice(idx,1);
+    // If no imported nuclei remain, reset button label
+    if(!state.manNuclei.some(p => p.fromAuto)) {
+      const btn = document.getElementById('manChAuto');
+      if(btn) { btn.className='ch-btn'; btn.textContent='Auto 🔵'; }
+    }
+  }
+  updateManualCounts();
+  redrawManualFull();
+}
+
+function adjustManual(type, delta) {
+  if(type==='nucleus') {
+    if(delta<0 && state.manNuclei.length>0) state.manNuclei.pop();
+    else if(delta>0) state.manNuclei.push({x:Math.random()*100+50,y:Math.random()*100+50});
+  } else {
+    if(delta<0 && state.manDiff.length>0) state.manDiff.pop();
+    else if(delta>0) state.manDiff.push({x:Math.random()*100+50,y:Math.random()*100+50});
+  }
+  updateManualCounts();
+  redrawManualFull();
+}
+
+function syncAutoBtn() {
+  if(!state.manNuclei.some(p => p.fromAuto)) {
+    const btn = document.getElementById('manChAuto');
+    if(btn) { btn.className='ch-btn'; btn.textContent='Auto 🔵'; }
+  }
+}
+
+function undoLast(type) {
+  if(type==='nucleus' && state.manNuclei.length>0) { state.manNuclei.pop(); syncAutoBtn(); }
+  if(type==='diff' && state.manDiff.length>0) state.manDiff.pop();
+  updateManualCounts();
+  redrawManualFull();
+}
+
+function updateManualCounts() {
+  const nuc = state.manNuclei.length;
+  const diff = state.manDiff.length;
+  document.getElementById('manNucCount').textContent = nuc;
+  document.getElementById('manDiffCount').textContent = diff;
+  const pct = nuc > 0 ? ((diff/nuc)*100).toFixed(1)+'%' : '—';
+  document.getElementById('diffPercent').textContent = pct;
+}
+
+// ──────────────────────────────────────────────
+// EXPORT PANEL
+// ──────────────────────────────────────────────
+function updateExportPanel() {
+  const auto = state.autoNuclei.length;
+  const manN = state.manNuclei.length;
+  const manD = state.manDiff.length;
+  const pct = manN > 0 ? ((manD/manN)*100).toFixed(1)+'%' : '—';
+  const avgA = auto ? Math.round(state.autoNuclei.reduce((s,n)=>s+n.area,0)/auto) : '—';
+  const avgI = auto ? Math.round(state.autoNuclei.reduce((s,n)=>s+n.intensity,0)/auto) : '—';
+  const w = state.dapiCanvas?.width||1, h = state.dapiCanvas?.height||1;
+  const coverage = auto ? ((state.autoNuclei.reduce((s,n)=>s+n.area,0)/(w*h))*100).toFixed(1)+'%' : '—';
+
+  document.getElementById('expAutoCount').textContent = auto||'—';
+  document.getElementById('expManNuc').textContent = manN||'—';
+  document.getElementById('expManDiff').textContent = manD||'—';
+
+  document.getElementById('rSampleName').textContent = document.getElementById('sampleName').value || '—';
+  document.getElementById('rCellType').textContent = document.getElementById('cellType').value || '—';
+  document.getElementById('rDate').textContent = document.getElementById('expDate').value || '—';
+  document.getElementById('rCondition').textContent = document.getElementById('condition').value || '—';
+  document.getElementById('rObjective').textContent = document.getElementById('objective').value || '—';
+  document.getElementById('rAutoCount').textContent = auto||'—';
+  document.getElementById('rAvgArea').textContent = avgA;
+  document.getElementById('rAvgInt').textContent = avgI;
+  document.getElementById('rCoverage').textContent = coverage;
+  document.getElementById('rManNuc').textContent = manN||'—';
+  document.getElementById('rManDiff').textContent = manD||'—';
+  document.getElementById('rDiffPct').textContent = pct;
+  document.getElementById('rNotes').textContent = document.getElementById('countNotes').value || '—';
+}
+
+function getSummaryData() {
+  const auto = state.autoNuclei.length;
+  const manN = state.manNuclei.length;
+  const manD = state.manDiff.length;
+  const pct = manN > 0 ? ((manD/manN)*100).toFixed(1) : '';
+  const avgA = auto ? Math.round(state.autoNuclei.reduce((s,n)=>s+n.area,0)/auto) : '';
+  const avgI = auto ? Math.round(state.autoNuclei.reduce((s,n)=>s+n.intensity,0)/auto) : '';
+  const w = state.dapiCanvas?.width||1, h = state.dapiCanvas?.height||1;
+  const coverage = auto ? ((state.autoNuclei.reduce((s,n)=>s+n.area,0)/(w*h))*100).toFixed(2) : '';
+
+  return {
+    sampleName: document.getElementById('sampleName').value,
+    cellType: document.getElementById('cellType').value,
+    date: document.getElementById('expDate').value,
+    condition: document.getElementById('condition').value,
+    objective: document.getElementById('objective').value,
+    notes: document.getElementById('expNotes').value,
+    autoCount: auto,
+    avgArea: avgA,
+    avgIntensity: avgI,
+    coverage,
+    manualNuclei: manN,
+    manualDiff: manD,
+    diffPercent: pct,
+    countNotes: document.getElementById('countNotes').value,
+    imageWidth: state.dapiCanvas?.width||'',
+    imageHeight: state.dapiCanvas?.height||'',
+    threshold: document.getElementById('threshSlider')?.value||'',
+    minRadius: document.getElementById('minSzSlider')?.value||'',
+    maxRadius: document.getElementById('maxSzSlider')?.value||'',
+    circularity: (parseInt(document.getElementById('circSlider')?.value||60)/100).toFixed(2),
+    dapiFileName: state.dapiFileName || '',
+    greenFileName: state.greenFileName || ''
+  };
+}
+
+function exportExcel() {
+  const d = getSummaryData();
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1 — Summary
+  const summaryData = [
+    ['CellScope — Cell Analysis Report'],
+    [],
+    ['Sample Information',''],
+    ['Sample Name', d.sampleName],
+    ['Cell Type', d.cellType],
+    ['Date', d.date],
+    ['Condition', d.condition],
+    ['Magnification', d.objective],
+    ['Sample Notes', d.notes],
+    [],
+    ['DAPI Auto Count',''],
+    ['Nuclei detected', d.autoCount],
+    ['Avg Nucleus Area (px²)', d.avgArea],
+    ['Avg fluorescence intensity', d.avgIntensity],
+    ['Area Coverage (%)', d.coverage],
+    [],
+    ['Manual Count',''],
+    ['Nuclei (manual)', d.manualNuclei],
+    ['Differentiated Cells (GFP+)', d.manualDiff],
+    ['Differentiation % (%)', d.diffPercent],
+    ['Count Notes', d.countNotes],
+    [],
+    ['Detection Parameters',''],
+    ['Intensity threshold', d.threshold],
+    ['Min size (px²)', d.minArea],
+    ['Max size (px²)', d.maxArea],
+    ['Erosion', d.erosion],
+    ['Dilation', d.dilation],
+    ['Min circularity (%)', d.circularity],
+    [],
+    ['Image Info',''],
+    ['Width (px)', d.imageWidth],
+    ['Height (px)', d.imageHeight]
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+  ws1['!cols'] = [{wch:35},{wch:25}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+  // Sheet 2 — Nuclei details
+  if(state.autoNuclei.length) {
+    const headers = ['#','Center X (px)','Center Y (px)','Axis X (px)','Axis Y (px)','Area (px²)','Intensity','Circularity'];
+    const rows = state.autoNuclei.map((n,i) => [
+      i+1,
+      Math.round(n.cx), Math.round(n.cy),
+      Math.round(n.rx), Math.round(n.ry),
+      n.area, Math.round(n.intensity),
+      n.circularity.toFixed(3)
+    ]);
+    const ws2 = XLSX.utils.aoa_to_sheet([headers,...rows]);
+    ws2['!cols'] = headers.map(()=>({wch:16}));
+    XLSX.utils.book_append_sheet(wb, ws2, 'Nuclei - Details');
+  }
+
+  // Sheet 3 — Manual markers
+  const manualHeaders = ['Type','Center X (px)','Center Y (px)'];
+  const manualRows = [
+    ...state.manNuclei.map(p=>['Nucleus (manual)',Math.round(p.x),Math.round(p.y)]),
+    ...state.manDiff.map(p=>['Diff. Cell',Math.round(p.x),Math.round(p.y)])
+  ];
+  if(manualRows.length) {
+    const ws3 = XLSX.utils.aoa_to_sheet([manualHeaders,...manualRows]);
+    ws3['!cols'] = [{wch:20},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Manual Markers');
+  }
+
+  const filename = (d.sampleName||'cellscope')+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.writeFile(wb, filename);
+}
+
+function exportCSV() {
+  const d = getSummaryData();
+  const rows = [
+    ['sample_name','cell_type','date','condition','magnification','auto_nuclei','avg_area','avg_intensity','coverage_pct','manual_nuclei','diff_cells','diff_pct'],
+    [d.sampleName,d.cellType,d.date,d.condition,d.objective,d.autoCount,d.avgArea,d.avgIntensity,d.coverage,d.manualNuclei,d.manualDiff,d.diffPercent]
+  ];
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (d.sampleName||'cellscope')+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+function printSummary() { window.print(); }
+
+function newSession() {
+  if(!confirm('Start a new analysis? All current data will be lost.')) return;
+  state.dapiImg=null; state.greenImg=null; state.dapiCanvas=null; state.greenCanvas=null;
+  state.autoNuclei=[]; state.manNuclei=[]; state.manDiff=[];
+  ['sampleName','cellType','expDate','condition','expNotes','countNotes'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('dapiZone').innerHTML = `<div class="upload-icon dapi-icon">🔵</div><div class="upload-label"><strong>DAPI / Hoechst</strong>Drag image here<br>or click to select</div>`;
+  document.getElementById('greenZone').innerHTML = `<div class="upload-icon green-icon">🟢</div><div class="upload-label"><strong>Green Fluorescence</strong>Drag image here<br>or click to select</div>`;
+  document.getElementById('dapiZone').classList.remove('has-image');
+  document.getElementById('greenZone').classList.remove('has-image');
+  resetParams();
+  goStep(0);
+}
+
+// ──────────────────────────────────────────────
+// GOOGLE SHEETS
+// ──────────────────────────────────────────────
+function openSheetsModal() {
+  try { const saved = localStorage.getItem('cellscope_sheets_url'); if(saved) document.getElementById('sheetsUrl').value = saved; } catch(e) {}
+  document.getElementById('sheetsModalBg').style.display = 'flex';
+  document.getElementById('sheetsStatus').style.display = 'none';
+  document.getElementById('sheetsStepA').style.display = 'block';
+}
+
+function closeSheetsModal() {
+  document.getElementById('sheetsModalBg').style.display = 'none';
+}
+
+function saveSheetsUrl() {
+  const url = document.getElementById('sheetsUrl').value.trim();
+  try { if(url) localStorage.setItem('cellscope_sheets_url', url); } catch(e) {}
+}
+
+function copyAppsScript() {
+  const code = document.getElementById('appsScriptCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ Copied';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+  });
+}
+
+async function sendToSheets() {
+  const url = document.getElementById('sheetsUrl').value.trim();
+  if(!url || !url.startsWith('https://script.google.com')) {
+    document.getElementById('sheetsUrl').style.borderColor = 'var(--danger)';
+    setTimeout(() => document.getElementById('sheetsUrl').style.borderColor = '', 2000);
+    return;
+  }
+  try { localStorage.setItem('cellscope_sheets_url', url); } catch(e) {}
+
+  const d = getSummaryData();
+  const payload = {
+    savedAt: new Date().toLocaleString('en-US'),
+    sampleName: d.sampleName, cellType: d.cellType, date: d.date,
+    condition: d.condition, objective: d.objective,
+    autoCount: d.autoCount, avgArea: d.avgArea,
+    manualNuclei: d.manualNuclei, manualDiff: d.manualDiff, diffPercent: d.diffPercent,
+    dapiFileName: d.dapiFileName, greenFileName: d.greenFileName
+  };
+
+  document.getElementById('sheetsStepA').style.display = 'none';
+  document.getElementById('sheetsStatus').style.display = 'block';
+  document.getElementById('sheetsStatusIcon').textContent = '⏳';
+  document.getElementById('sheetsStatusText').textContent = 'Sending data to Google Sheets...';
+
+  try {
+    await fetch(url, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    // Save locally regardless of Sheets result
+    saveToLocalHistory(payload);
+    document.getElementById('sheetsStatusIcon').textContent = '✅';
+    document.getElementById('sheetsStatusText').innerHTML =
+      '<span style="color:var(--green);font-size:15px;font-weight:500;">Data saved successfully!</span><br><span style="font-size:12px;color:var(--text3)">New row added to your sheet and local history</span>';
+    setTimeout(closeSheetsModal, 2200);
+  } catch(err) {
+    document.getElementById('sheetsStatusIcon').textContent = '❌';
+    document.getElementById('sheetsStatusText').innerHTML =
+      '<span style="color:var(--danger)">Send error</span><br><span style="font-size:12px;color:var(--text3)">Check that the URL is correct and the deployment is active</span>' +
+      '<br><button onclick="document.getElementById(\'sheetsStatus\').style.display=\'none\';document.getElementById(\'sheetsStepA\').style.display=\'block\';" style="margin-top:10px;padding:6px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);cursor:pointer;font-size:12px;">Try Again</button>';
+  }
+}
+
+document.getElementById('sheetsModalBg').addEventListener('click', function(e) {
+  if(e.target === this) closeSheetsModal();
 });
 
-function hlRow(idx){
-  document.querySelectorAll('#objTbl tr').forEach((tr,i)=>{tr.classList.toggle('sel',i===idx+1);if(i===idx+1)tr.scrollIntoView({block:'nearest'});});
+// ──────────────────────────────────────────────
+// LOCAL HISTORY (persists across sessions)
+// ──────────────────────────────────────────────
+const HISTORY_KEY = 'cellscope_history';
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; }
 }
 
-// ── ZOOM ──
-function doZoom(f){
-  if(!imgD)return;
-  dscale*=f;
-  const dW=Math.round(iW*dscale),dH=Math.round(iH*dscale);
-  const ic=document.getElementById('iCvs'),oc=document.getElementById('oCvs');
-  ic.width=oc.width=dW;ic.height=oc.height=dH;
-  redraw();if(circles.length)drawOverlay();
-}
-function resetZoom(){
-  if(!imgD)return;
-  const rp=document.getElementById('rp');
-  dscale=Math.min((rp.clientWidth-20)/iW,(rp.clientHeight-20)/iH,1);
-  const dW=Math.round(iW*dscale),dH=Math.round(iH*dscale);
-  const ic=document.getElementById('iCvs'),oc=document.getElementById('oCvs');
-  ic.width=oc.width=dW;ic.height=oc.height=dH;
-  redraw();if(circles.length)drawOverlay();
-}
-function doReset(){
-  imgD=imgG=grayD=grayG=null;circles=[];selIdx=-1;
-  ['dzD','dzG'].forEach(id=>document.getElementById(id).className='dz');
-  document.getElementById('nmD').textContent='לא נטען';
-  document.getElementById('nmG').textContent='לא נטען';
-  document.getElementById('btnA').disabled=true;
-  document.getElementById('es').style.display='flex';
-  document.getElementById('cw').style.display='none';
-  document.getElementById('stats').innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:.4rem 0">טען שני קבצים ולחץ נתח</div>';
-  document.getElementById('fD').value='';document.getElementById('fG').value='';
+function saveToLocalHistory(record) {
+  try {
+    const history = getHistory();
+    history.unshift({ ...record, _id: Date.now() });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch(e) {}
 }
 
-// ── STATS ──
-function renderStats(){
-  const valid=circles.filter(c=>!c.excl), excl=circles.filter(c=>c.excl);
-  if(!circles.length){document.getElementById('stats').innerHTML='<div style="color:var(--muted);font-size:.72rem">לא נמצאו תאים</div>';return;}
-
-  const rs=valid.map(c=>c.r), gm=valid.map(c=>c.gMean), gs=valid.map(c=>c.gSum);
-  const meanR=rs.length?avg(rs):0, stdR=rs.length?std(rs):0;
-  const meanGm=gm.length?avg(gm):0, totGS=gs.reduce((a,b)=>a+b,0);
-  const totArea=valid.reduce((s,c)=>s+c.gArea,0);
-  const signalPerArea=totArea>0?totGS/totArea:0;
-  const vesicCells=valid.filter(c=>c.pattern==='וסיקולרי').length;
-  const diffCells=valid.filter(c=>c.pattern==='מפוזר').length;
-  const mixCells=valid.filter(c=>c.pattern==='מעורב').length;
-  const meanCV=valid.length?avg(valid.map(c=>c.cv)):0;
-
-  // histogram
-  let mnR=Infinity,mxR=-Infinity;
-  for(const r of rs){if(r<mnR)mnR=r;if(r>mxR)mxR=r;}
-  const BINS=8,bW=(mxR-mnR)/BINS||1;
-  const hist=Array(BINS).fill(0);
-  rs.forEach(r=>{const b=Math.min(BINS-1,Math.floor((r-mnR)/bW));hist[b]++;});
-  let hMax=0;for(const h of hist)if(h>hMax)hMax=h;
-
-  // summary text
-  const now=new Date();
-  const ts=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
-  const hTxt=hist.map((cnt,i)=>{
-    const lo=(mnR+i*bW).toFixed(0),hi=(mnR+(i+1)*bW).toFixed(0);
-    const bar='\u2588'.repeat(Math.round(cnt/(hMax||1)*10));
-    return '  '+(lo+'\u2013'+hi+'px').padEnd(12,' ')+'| '+bar.padEnd(10,' ')+' '+cnt;
-  }).join('\n');
-  window._sum=[
-    'DAPI: '+fnD,'Green: '+fnG,'Date: '+ts,
-    '\u2500'.repeat(32),
-    'Total cells detected: '+circles.length,
-    'Valid cells:          '+valid.length,
-    'Excluded (overlap):   '+excl.length,
-    '\u2500'.repeat(32),
-    'Mean radius:          '+meanR.toFixed(1)+' px',
-    'Std radius:           '+stdR.toFixed(1)+' px',
-    '\u2500'.repeat(32),
-    'GREEN SIGNAL',
-    'Total integrated density: '+totGS.toFixed(0),
-    'Mean intensity (per px):  '+meanGm.toFixed(2),
-    'Signal per area unit:     '+signalPerArea.toFixed(2),
-    '\u2500'.repeat(32),
-    'VESICLE ANALYSIS (CV threshold: <0.30 diffuse / 0.30-0.60 mixed / >0.60 vesicular)',
-    'Mean CV:              '+meanCV.toFixed(3),
-    'Vesicular cells:      '+vesicCells+' ('+((valid.length?vesicCells/valid.length*100:0).toFixed(1))+'%)',
-    'Mixed cells:          '+mixCells+' ('+((valid.length?mixCells/valid.length*100:0).toFixed(1))+'%)',
-    'Diffuse cells:        '+diffCells+' ('+((valid.length?diffCells/valid.length*100:0).toFixed(1))+'%)',
-    '\u2500'.repeat(32),
-    'Size distribution:',hTxt
-  ].join('\n');
-
-  const iCol=v=>{const n=Math.min(1,v/200);return `hsl(${Math.round(120-n*120)},85%,52%)`;};
-
-  document.getElementById('stats').innerHTML=`
-    <div class="sum-box">
-      <div class="sum-title">// סיכום ניתוח</div>
-      <button class="cpy" id="cpyBtn" onclick="doCopy()">העתק</button>
-      <pre class="sum-pre" id="sumPre"></pre>
-    </div>
-    <div class="sg">
-      <div class="sc"><div class="v">${valid.length}</div><div class="k">תאים תקינים</div></div>
-      <div class="sc"><div class="v r">${excl.length}</div><div class="k">מוחרגים (חפיפה)</div></div>
-      <div class="sc"><div class="v g">${totGS.toFixed(0)}</div><div class="k">∫ סיגנל כולל</div></div>
-      <div class="sc"><div class="v g">${signalPerArea.toFixed(2)}</div><div class="k">סיגנל לשטח (px)</div></div>
-      <div class="sc"><div class="v">${meanGm.toFixed(1)}</div><div class="k">עוצמה ירוקה ⌀</div></div>
-      <div class="sc"><div class="v">${meanCV.toFixed(2)}</div><div class="k">CV ממוצע (פיזור)</div></div>
-    </div>
-    <div class="lbl" style="padding:0 0 .35rem;border:none">// ניתוח וסיקולות</div>
-    <div class="sg" style="margin-bottom:.5rem">
-      <div class="sc"><div class="v" style="color:var(--warn)">${vesicCells}</div><div class="k">וסיקולרי</div></div>
-      <div class="sc"><div class="v" style="color:#9999ff">${mixCells}</div><div class="k">מעורב</div></div>
-      <div class="sc"><div class="v">${diffCells}</div><div class="k">מפוזר</div></div>
-      <div class="sc"><div class="v">${(valid.length?vesicCells/valid.length*100:0).toFixed(0)}%</div><div class="k">% וסיקולרי</div></div>
-    </div>
-    <div class="lbl" style="padding:0 0 .35rem;border:none">// התפלגות גדלים</div>
-    <div class="hist">
-      ${hist.map((cnt,i)=>{
-        const lo=(mnR+i*bW).toFixed(0),hi=(mnR+(i+1)*bW).toFixed(0);
-        const pct=hMax>0?(cnt/hMax*100):0;
-        const hue=Math.round(195-(i/BINS)*60);
-        return `<div class="hr"><div class="hl">${lo}\u2013${hi}</div><div class="ht"><div class="hf" style="width:${pct.toFixed(1)}%;background:hsl(${hue},68%,50%)"></div><span class="hc">${cnt}</span></div><div class="hp">${pct.toFixed(0)}%</div></div>`;
-      }).join('')}
-    </div>
-    <div class="lbl" style="padding:0 0 .35rem;border:none">// טבלת תאים</div>
-    <div class="tw">
-      <table id="objTbl">
-        <thead><tr><th>#</th><th>r</th><th>ירוק⌀</th><th>∫dens</th><th>sig/px</th><th>CV</th><th>מוקדים</th><th>דפוס</th><th></th></tr></thead>
-        <tbody>
-          ${circles.map((c,i)=>`<tr onclick="selC(${i})" class="${c.excl?'excl':''}" style="cursor:pointer">
-            <td>${c.id}</td><td>${c.r.toFixed(1)}</td>
-            <td>${c.excl?'—':'<span class="dot" style="background:'+iCol(c.gMean)+'"></span>'+c.gMean.toFixed(0)}</td>
-            <td>${c.excl?'—':c.gSum.toFixed(0)}</td>
-            <td>${c.excl?'—':(c.gArea>0?( c.gSum/c.gArea).toFixed(1):'—')}</td>
-            <td>${c.excl?'—':c.cv.toFixed(2)}</td>
-            <td>${c.excl?'—':c.vesicleCount}</td>
-            <td>${c.excl?'—':('<span class="badge '+(c.pattern==='וסיקולרי'?'b-ves':c.pattern==='מעורב'?'b-mix':'b-dif')+'">'+c.pattern+'</span>')}</td>
-            <td>${c.excl?'<span class="badge b-ex">חפיפה</span>':'<span class="badge b-ok">✓</span>'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  document.getElementById('sumPre').textContent=window._sum||'';
+function deleteHistoryRow(id) {
+  try {
+    const history = getHistory().filter(r => r._id !== id);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    renderHistoryTable();
+  } catch(e) {}
 }
 
-function selC(i){selIdx=i;drawOverlay();hlRow(i);}
-
-function doCopy(){
-  const text=window._sum||'';
-  const ta=document.createElement('textarea');
-  ta.value=text;
-  Object.assign(ta.style,{position:'fixed',top:'0',left:'0',width:'2px',height:'2px',opacity:'0.01',fontSize:'12pt'});
-  document.body.appendChild(ta);ta.focus();ta.select();
-  let ok=false;try{ok=document.execCommand('copy');}catch(_){}
-  document.body.removeChild(ta);
-  const btn=document.getElementById('cpyBtn');
-  if(ok){
-    btn.textContent='\u2713 הועתק';btn.classList.add('ok');
-    setTimeout(()=>{btn.textContent='העתק';btn.classList.remove('ok');},2000);
-  } else if(navigator.clipboard){
-    navigator.clipboard.writeText(text).then(()=>{
-      btn.textContent='\u2713 הועתק';btn.classList.add('ok');
-      setTimeout(()=>{btn.textContent='העתק';btn.classList.remove('ok');},2000);
-    }).catch(()=>alert('העתק ידנית:\n'+text));
-  } else { alert('העתק ידנית:\n'+text); }
+function clearHistory() {
+  if(!confirm('Delete all saved data? This action cannot be undone.')) return;
+  try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
+  renderHistoryTable();
 }
 
-function avg(a){return a.reduce((s,v)=>s+v,0)/a.length;}
-function std(a){const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);}
+function renderHistoryTable() {
+  const history = getHistory();
+  const empty = document.getElementById('historyEmpty');
+  const wrap = document.getElementById('historyTableWrap');
+  const tbody = document.getElementById('historyBody');
+
+  if(!history.length) {
+    empty.style.display = 'block';
+    wrap.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display = 'block';
+
+  tbody.innerHTML = history.map((r, i) => `
+    <tr>
+      <td class="td-val" style="color:var(--text3);font-size:12px;">${history.length - i}</td>
+      <td style="white-space:nowrap;font-size:12px;color:var(--text3)">${r.savedAt || '—'}</td>
+      <td class="td-val">${r.sampleName || '—'}</td>
+      <td>${r.cellType || '—'}</td>
+      <td>${r.condition || '—'}</td>
+      <td style="font-family:var(--mono)">${r.objective || '—'}</td>
+      <td style="font-size:11px;color:var(--text3);font-family:var(--mono);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.dapiFileName||''}">${r.dapiFileName || '—'}</td>
+      <td style="font-size:11px;color:var(--text3);font-family:var(--mono);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.greenFileName||''}">${r.greenFileName || '—'}</td>
+      <td class="td-val" style="color:var(--dapi)">${r.autoCount ?? '—'}</td>
+      <td style="font-family:var(--mono)">${r.avgArea ?? '—'}</td>
+      <td class="td-val">${r.manualNuclei ?? '—'}</td>
+      <td class="td-val" style="color:var(--green)">${r.manualDiff ?? '—'}</td>
+      <td class="td-val" style="color:var(--green)">${r.diffPercent ? r.diffPercent + '%' : '—'}</td>
+      <td><button onclick="deleteHistoryRow(${r._id})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px;" title="Delete row">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
+function exportHistoryExcel() {
+  const history = getHistory();
+  if(!history.length) { alert('No data to export'); return; }
+  const wb = XLSX.utils.book_new();
+  const headers = ['#','Saved At','Sample Name','Cell Type','Condition','Magnification','DAPI File','Green File','Auto Nuclei','Avg Area (px²)','Manual Nuclei','Diff. Cells','Diff. %'];
+  const rows = history.map((r, i) => [
+    history.length - i, r.savedAt, r.sampleName, r.cellType,
+    r.condition, r.objective, r.dapiFileName, r.greenFileName,
+    r.autoCount, r.avgArea, r.manualNuclei, r.manualDiff, r.diffPercent
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = headers.map((h,i) => ({ wch: i===0 ? 4 : i===1 ? 22 : 18 }));
+  XLSX.utils.book_append_sheet(wb, ws, 'History');
+  XLSX.writeFile(wb, 'cellscope_history_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+function exportHistoryCSV() {
+  const history = getHistory();
+  if(!history.length) { alert('No data to export'); return; }
+  const headers = ['num','savedAt','sampleName','cellType','condition','objective','dapiFileName','greenFileName','autoCount','avgArea','manualNuclei','manualDiff','diffPercent'];
+  const rows = history.map((r, i) => [
+    history.length - i, r.savedAt, r.sampleName, r.cellType,
+    r.condition, r.objective, r.dapiFileName, r.greenFileName,
+    r.autoCount, r.avgArea, r.manualNuclei, r.manualDiff, r.diffPercent
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => '"'+(v??'')+'"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cellscope_history_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// Also allow saving locally without Sheets (save button in export panel)
+function saveLocalOnly() {
+  const d = getSummaryData();
+  const record = {
+    savedAt: new Date().toLocaleString('en-US'),
+    sampleName: d.sampleName, cellType: d.cellType, date: d.date,
+    condition: d.condition, objective: d.objective,
+    autoCount: d.autoCount, avgArea: d.avgArea,
+    manualNuclei: d.manualNuclei, manualDiff: d.manualDiff, diffPercent: d.diffPercent,
+    dapiFileName: d.dapiFileName, greenFileName: d.greenFileName
+  };
+  saveToLocalHistory(record);
+  const btn = document.getElementById('saveLocalBtn');
+  btn.textContent = '✓ Saved!';
+  btn.style.color = 'var(--green)';
+  btn.style.borderColor = 'var(--green)';
+  setTimeout(() => { btn.textContent = '💾 Save Locally'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+}
+
+// Set default date
+document.getElementById('expDate').valueAsDate = new Date();
+
+// Set initial click mode display
+setClickMode('nucleus');
+
+// Load saved params from previous session
+loadSavedParams();
 </script>
 </body>
 </html>
