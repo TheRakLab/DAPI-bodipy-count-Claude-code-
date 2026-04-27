@@ -28,7 +28,7 @@ A fully client-side fluorescence microscopy analysis tool. Upload DAPI and GFP i
 
 ## 🚀 Live Demo
 
-👉 **[Open CellScope](https://YOUR-USERNAME.github.io/cellscope/)**
+👉 **[Open CellScope](https://theraklab.github.io/DAPI-bodipy-count-Claude-code-/)**
 
 No login required. All processing happens in your browser.
 
